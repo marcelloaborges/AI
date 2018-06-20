@@ -14,11 +14,13 @@ def create_app(**config_overrides):
     from ml.views import ml_app
     
     from ml.regression.simple_linear_regression.views import simple_linear_regression_app
+    from ml.regression.polynomial_regression.views import polynomial_regression_app
 
     # register blueprints
     app.register_blueprint(home_app)    
     app.register_blueprint(ml_app)
 
     app.register_blueprint(simple_linear_regression_app)
+    app.register_blueprint(polynomial_regression_app)
 
     return app

@@ -4,12 +4,12 @@ from flask import jsonify, request, redirect, url_for
 #ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 ALLOWED_EXTENSIONS = set(['csv'])
 
-from core.ml.regression.simple_linear_regression import SimpleLinearRegression
+from core.ml.regression.polinomial_regression import PolynomialRegression
 
-class SimpleLinearRegressionApi(MethodView):
+class PolynomialRegressionApi(MethodView):
 
     def get(self):
-        return "Simple Linear Regression Home", 200    
+        return "Polynomial Regression Home", 200    
 
     def post(self):        
         if 'file' not in request.files:                        
@@ -23,7 +23,7 @@ class SimpleLinearRegressionApi(MethodView):
         if file and allowed_file(file.filename):    
             csv = file.stream.read().decode('utf-8')
 
-            regressor = SimpleLinearRegression()        
+            regressor = PolynomialRegression()        
             result = regressor.Run(csv)
 
             return jsonify(result), 200
