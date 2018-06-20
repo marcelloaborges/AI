@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="0423bd26-b2a3-47e9-a83c-1c9122166a1e" name="Default" comment="" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file leaf-file-name="Program.cs" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Test1/Program.cs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-760">
+              <caret line="20" column="30" selection-start-line="20" selection-start-column="30" selection-end-line="20" selection-end-column="30" />
+              <folding>
+                <marker date="1524856159998" expanded="true" signature="30:11240" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="50:11238" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="223:1772" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="246:344" ph="/* bandit1 Real =&gt; 0.80d; ... */" />
+                <marker date="1524856159998" expanded="true" signature="689:1762" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="1427:1748" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="2128:8355" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="2283:4930" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="2341:3170" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="2587:3152" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="3214:4043" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="3460:4025" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="4087:4916" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="4333:4898" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="4947:7627" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="5005:5845" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="5254:5827" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="5889:6729" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="6138:6711" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="6773:7613" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="7022:7595" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="7650:8314" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="7696:7994" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="7803:7976" ph="/* gradient[3] = 0.999 * gradient[3] + 0.001 * Math.Pow(keepChance - 1, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="8015:8300" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="8117:8282" ph="/* gradient[3] = 0.999 * gradient[3] + 0.001 * Math.Pow(keepChance, 2); ... */" />
+                <marker date="1524856159998" expanded="true" signature="8385:8487" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="8535:8928" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9075:9636" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9219:9333" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9380:9494" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9540:9625" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9786:11231" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="9922:10028" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10075:10181" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10289:10407" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10440:10558" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10591:10709" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10822:11013" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="10889:10998" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="11030:11221" ph="{...}" />
+                <marker date="1524856159998" expanded="true" signature="11097:11206" ph="{...}" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/Test1/Program.cs" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="JsBuildToolGruntFileManager" detection-done="true" sorting="DEFINITION_ORDER" />
+  <component name="JsBuildToolPackageJson" detection-done="true" sorting="DEFINITION_ORDER" />
+  <component name="JsGulpfileManager">
+    <detection-done>true</detection-done>
+    <sorting>DEFINITION_ORDER</sorting>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="-8" />
+    <option name="y" value="-8" />
+    <option name="width" value="1554" />
+    <option name="height" value="916" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="SolutionExplorer" proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scratches" />
+      <pane id="SolutionExplorer">
+        <subPane>
+          <expand>
+            <path>
+              <item name="" type="13324e5d:SolutionExplorerViewPane$ProjectViewPaneTreeStructure$createRoot$1" />
+              <item name="Test1 (1 project)" type="977d5f41:SolutionExplorerNodeRider" />
+            </path>
+            <path>
+              <item name="" type="13324e5d:SolutionExplorerViewPane$ProjectViewPaneTreeStructure$createRoot$1" />
+              <item name="Test1 (1 project)" type="977d5f41:SolutionExplorerNodeRider" />
+              <item name="Test1" type="977d5f41:SolutionExplorerNodeRider" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+        <option name="show-file-system" value="false" />
+        <option name="show-all-items" value="false" />
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="Rider.ProjectViewActivator.IsNotFirstRun" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager">
+    <configuration name="Default" type="DotNetProject" factoryName=".NET Project">
+      <option name="EXE_PATH" value="" />
+      <option name="PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="PASS_PARENT_ENVS" value="1" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="USE_MONO" value="0" />
+      <option name="PROJECT_PATH" value="" />
+      <option name="PROJECT_EXE_PATH_TRACKING" value="1" />
+      <option name="PROJECT_ARGUMENTS_TRACKING" value="1" />
+      <option name="PROJECT_WORKING_DIRECTORY_TRACKING" value="1" />
+      <option name="PROJECT_KIND" value="None" />
+      <option name="PROJECT_TFM" value="" />
+    </configuration>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0423bd26-b2a3-47e9-a83c-1c9122166a1e" name="Default" comment="" />
+      <created>1528118344643</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1528118344643</updated>
+      <workItem from="1528118357748" duration="103000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TimeTrackingManager">
+    <option name="totallyTimeSpent" value="103000" />
+  </component>
+  <component name="TodoView">
+    <todo-panel id="selected-file">
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+    <todo-panel id="all">
+      <are-packages-shown value="true" />
+      <is-autoscroll-to-source value="true" />
+    </todo-panel>
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="-8" y="-8" width="1554" height="916" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="right" id="Errors In Solution" />
+      <window_info anchor="bottom" id="Event Log" side_tool="true" />
+      <window_info anchor="bottom" id="Unit Tests" />
+      <window_info anchor="bottom" id="Database Changes" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Version Control" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Terminal" />
+      <window_info anchor="bottom" id="NuGet" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2496749" />
+      <window_info anchor="bottom" id="Docker" show_stripe_button="false" />
+      <window_info anchor="right" id="Database" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info id="Favorites" side_tool="true" />
+      <window_info anchor="bottom" id="Find" order="1" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+    </layout>
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="UnityProjectConfiguration" isUnityUI="false" />
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Test1/Program.cs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-760">
+          <caret line="20" column="30" selection-start-line="20" selection-start-column="30" selection-end-line="20" selection-end-column="30" />
+          <folding>
+            <marker date="1524856159998" expanded="true" signature="30:11240" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="50:11238" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="223:1772" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="246:344" ph="/* bandit1 Real =&gt; 0.80d; ... */" />
+            <marker date="1524856159998" expanded="true" signature="689:1762" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="1427:1748" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="2128:8355" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="2283:4930" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="2341:3170" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="2587:3152" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="3214:4043" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="3460:4025" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="4087:4916" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="4333:4898" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="4947:7627" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="5005:5845" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="5254:5827" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="5889:6729" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="6138:6711" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="6773:7613" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="7022:7595" ph="/* gradient[0] = 0.999 * gradient[0] + 0.001 * Math.Pow(bandit1Chance - 1, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="7650:8314" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="7696:7994" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="7803:7976" ph="/* gradient[3] = 0.999 * gradient[3] + 0.001 * Math.Pow(keepChance - 1, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="8015:8300" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="8117:8282" ph="/* gradient[3] = 0.999 * gradient[3] + 0.001 * Math.Pow(keepChance, 2); ... */" />
+            <marker date="1524856159998" expanded="true" signature="8385:8487" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="8535:8928" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9075:9636" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9219:9333" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9380:9494" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9540:9625" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9786:11231" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="9922:10028" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10075:10181" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10289:10407" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10440:10558" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10591:10709" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10822:11013" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="10889:10998" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="11030:11221" ph="{...}" />
+            <marker date="1524856159998" expanded="true" signature="11097:11206" ph="{...}" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

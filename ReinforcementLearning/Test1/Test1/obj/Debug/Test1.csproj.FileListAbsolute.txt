@@ -1,0 +1,7 @@
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\bin\Debug\Test1.exe.config
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\bin\Debug\Test1.exe
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\bin\Debug\Test1.pdb
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\obj\Debug\Test1.csprojResolveAssemblyReference.cache
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\obj\Debug\Test1.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\obj\Debug\Test1.exe
+C:\Dev\Learning\ReinforcementLearning\Test1\Test1\obj\Debug\Test1.pdb

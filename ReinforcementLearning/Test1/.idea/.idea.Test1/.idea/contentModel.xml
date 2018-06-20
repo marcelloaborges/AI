@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ContentModelStore">
+    <e p="C:\Dev\Learning\ReinforcementLearning\Test1" t="IncludeFlat">
+      <e p="packages" t="ExcludeRecursive" />
+      <e p="Test1" t="IncludeRecursive">
+        <e p="App.config" t="Include" />
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="obj" t="ExcludeRecursive" />
+        <e p="Program.cs" t="Include" />
+        <e p="Properties" t="Include">
+          <e p="AssemblyInfo.cs" t="Include" />
+        </e>
+        <e p="Test1.csproj" t="IncludeRecursive" />
+      </e>
+      <e p="Test1.sln" t="IncludeFlat" />
+    </e>
+    <e p="C:\Users\marcello.borges\.Rider2018.1\system\resharper-host\local\Transient\ReSharperHost\v12\SolutionCaches\_Test1.369277015.00" t="ExcludeRecursive" />
+  </component>
+</project>

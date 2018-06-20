@@ -1,0 +1,11 @@
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\bin\Debug\netcoreapp2.0\BestAd.deps.json
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\bin\Debug\netcoreapp2.0\BestAd.runtimeconfig.json
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\bin\Debug\netcoreapp2.0\BestAd.runtimeconfig.dev.json
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\bin\Debug\netcoreapp2.0\BestAd.dll
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\bin\Debug\netcoreapp2.0\BestAd.pdb
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.csprojAssemblyReference.cache
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.AssemblyInfoInputs.cache
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.AssemblyInfo.cs
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.dll
+C:\Dev\Learning\ReinforcementLearning\T-Test\BestAd\BestAd\obj\Debug\netcoreapp2.0\BestAd.pdb

@@ -1,0 +1,47 @@
+﻿{
+  "version": "1.0.0",
+  "restore": {
+    "projectUniqueName": "C:\\Dev\\Learning\\ReinforcementLearning\\CTR\\BestAd\\CTRTest\\CTRTest.csproj",
+    "projectName": "CTRTest",
+    "projectPath": "C:\\Dev\\Learning\\ReinforcementLearning\\CTR\\BestAd\\CTRTest\\CTRTest.csproj",
+    "outputPath": "C:\\Dev\\Learning\\ReinforcementLearning\\CTR\\BestAd\\CTRTest\\obj\\",
+    "projectStyle": "PackageReference",
+    "fallbackFolders": [
+      "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+    ],
+    "originalTargetFrameworks": [
+      "netcoreapp2.0"
+    ],
+    "frameworks": {
+      "netcoreapp2.0": {
+        "projectReferences": {}
+      }
+    },
+    "warningProperties": {
+      "warnAsError": [
+        "NU1605"
+      ]
+    }
+  },
+  "frameworks": {
+    "netcoreapp2.0": {
+      "dependencies": {
+        "FileHelpers": {
+          "target": "Package",
+          "version": "[3.2.7, )"
+        },
+        "Microsoft.NETCore.App": {
+          "suppressParent": "All",
+          "target": "Package",
+          "version": "[2.0.0, )",
+          "autoReferenced": true
+        }
+      },
+      "imports": [
+        "net461"
+      ],
+      "assetTargetFallback": true,
+      "warn": true
+    }
+  }
+}

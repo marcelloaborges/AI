@@ -1,0 +1,8 @@
+C:\Dev\Learning\RGB\Network\bin\Debug\netcoreapp2.0\Network.deps.json
+C:\Dev\Learning\RGB\Network\bin\Debug\netcoreapp2.0\Network.dll
+C:\Dev\Learning\RGB\Network\bin\Debug\netcoreapp2.0\Network.pdb
+C:\Dev\Learning\RGB\Network\obj\Debug\netcoreapp2.0\Network.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\RGB\Network\obj\Debug\netcoreapp2.0\Network.AssemblyInfoInputs.cache
+C:\Dev\Learning\RGB\Network\obj\Debug\netcoreapp2.0\Network.AssemblyInfo.cs
+C:\Dev\Learning\RGB\Network\obj\Debug\netcoreapp2.0\Network.dll
+C:\Dev\Learning\RGB\Network\obj\Debug\netcoreapp2.0\Network.pdb

@@ -1,0 +1,11 @@
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.csprojAssemblyReference.cache
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.AssemblyInfoInputs.cache
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.AssemblyInfo.cs
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\bin\Debug\netcoreapp2.0\CTRTest.deps.json
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\bin\Debug\netcoreapp2.0\CTRTest.runtimeconfig.json
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\bin\Debug\netcoreapp2.0\CTRTest.runtimeconfig.dev.json
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\bin\Debug\netcoreapp2.0\CTRTest.dll
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\bin\Debug\netcoreapp2.0\CTRTest.pdb
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.dll
+C:\Dev\Learning\ReinforcementLearning\CTR\BestAd\CTRTest\obj\Debug\netcoreapp2.0\CTRTest.pdb

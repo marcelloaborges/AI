@@ -1,0 +1,12 @@
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Coach.deps.json
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Coach.runtimeconfig.json
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Coach.runtimeconfig.dev.json
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Coach.dll
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Coach.pdb
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Network.dll
+C:\Dev\Learning\RGB\Coach\bin\Debug\netcoreapp2.0\Network.pdb
+C:\Dev\Learning\RGB\Coach\obj\Debug\netcoreapp2.0\Coach.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\RGB\Coach\obj\Debug\netcoreapp2.0\Coach.AssemblyInfoInputs.cache
+C:\Dev\Learning\RGB\Coach\obj\Debug\netcoreapp2.0\Coach.AssemblyInfo.cs
+C:\Dev\Learning\RGB\Coach\obj\Debug\netcoreapp2.0\Coach.dll
+C:\Dev\Learning\RGB\Coach\obj\Debug\netcoreapp2.0\Coach.pdb

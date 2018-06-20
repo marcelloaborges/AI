@@ -1,0 +1,70 @@
+WHITE
+
+floral white;(255,250,240);WHITE
+alice blue;(240,248,255);WHITE
+ghost white;(248,248,255);WHITE
+honeydew;(240,255,240);WHITE
+ivory;(255,255,240);WHITE
+azure;(240,255,255);WHITE
+snow;(255,250,250);WHITE
+
+BLACK
+
+dim gray / dim grey;(20,20,20);BLACK
+dim gray / dim grey;(40,40,40);BLACK
+dim gray / dim grey;(20,40,40);BLACK
+dim gray / dim grey;(80,80,80);BLACK
+dim gray / dim grey;(105,105,105);BLACK
+gray / grey;(128,128,128);BLACK
+
+RED
+
+maroon;(128,0,0);RED
+dark red;(139,0,0);RED
+brown;(165,42,42);RED
+firebrick;(178,34,34);RED
+crimson;(220,20,60);RED
+red;(255,0,0);RED
+tomato;(255,99,71);RED
+coral;(255,127,80);RED
+indian red;(205,92,92);RED
+light coral;(240,128,128);RED
+dark salmon;(233,150,122);RED
+salmon;(250,128,114);RED
+light salmon;(255,160,122);RED
+
+GREEN
+
+dark olive green;(85,107,47);GREEN
+olive drab;(107,142,35);GREEN
+lawn green;(124,252,0);GREEN
+chart reuse;(127,255,0);GREEN
+green yellow;(173,255,47);GREEN
+dark green;(0,100,0);GREEN
+green;(0,128,0);GREEN
+forest green;(34,139,34);GREEN
+
+BLUE
+
+steel blue;(70,130,180);BLUE
+corn flower blue;(100,149,237);BLUE
+deep sky blue;(0,191,255);BLUE
+dodger blue;(30,144,255);BLUE
+light blue;(173,216,230);BLUE
+sky blue;(135,206,235);BLUE
+light sky blue;(135,206,250);BLUE
+midnight blue;(25,25,112);BLUE
+navy;(0,0,128);BLUE
+dark blue;(0,0,139);BLUE
+medium blue;(0,0,205);BLUE
+
+YELLOW
+
+gold;(255,215,0);YELLOW
+dark golden rod;(184,134,11);YELLOW
+golden rod;(218,165,32);YELLOW
+pale golden rod;(238,232,170);YELLOW
+dark khaki;(189,183,107);YELLOW
+khaki;(240,230,140);YELLOW
+olive;(128,128,0);YELLOW
+yellow green;(154,205,50);YELLOW

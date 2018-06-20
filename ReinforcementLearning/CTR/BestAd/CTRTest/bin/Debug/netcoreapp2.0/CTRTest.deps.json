@@ -1,0 +1,38 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v2.0",
+    "signature": "f6d14fff34240d9caddb7caeb1f93c0ce66a5f06"
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v2.0": {
+      "CTRTest/1.0.0": {
+        "dependencies": {
+          "FileHelpers": "3.2.7"
+        },
+        "runtime": {
+          "CTRTest.dll": {}
+        }
+      },
+      "FileHelpers/3.2.7": {
+        "runtime": {
+          "lib/net45/FileHelpers.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CTRTest/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FileHelpers/3.2.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0gW0b6a39jX0amH3UB/z/4BBDLn3wOivR0vS/ub+nTM8Q4IEAmTNiMhGxGs9aS7LuU3ltSqfpyvgB0vwCUJpPg==",
+      "path": "filehelpers/3.2.7",
+      "hashPath": "filehelpers.3.2.7.nupkg.sha512"
+    }
+  }
+}

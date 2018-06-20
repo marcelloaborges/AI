@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ContentModelStore">
+    <e p="C:\Dev\Learning\ReinforcementLearning\UCB\UCB" t="IncludeFlat">
+      <e p="packages" t="ExcludeRecursive" />
+      <e p="UCB.sln" t="IncludeFlat" />
+      <e p="UpperConfidenceBound" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="netcoreapp2.0" t="Include">
+              <e p="UpperConfidenceBound.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="Program.cs" t="Include" />
+        <e p="UpperConfidenceBound.csproj" t="IncludeRecursive" />
+      </e>
+    </e>
+    <e p="C:\Users\marcello.borges\.Rider2018.1\system\resharper-host\local\Transient\ReSharperHost\v12\SolutionCaches\_UCB.-1823775559.00" t="ExcludeRecursive" />
+  </component>
+</project>

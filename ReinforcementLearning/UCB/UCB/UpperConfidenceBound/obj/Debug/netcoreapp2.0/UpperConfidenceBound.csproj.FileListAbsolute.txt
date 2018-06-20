@@ -1,0 +1,11 @@
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\bin\Debug\netcoreapp2.0\UpperConfidenceBound.deps.json
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\bin\Debug\netcoreapp2.0\UpperConfidenceBound.runtimeconfig.json
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\bin\Debug\netcoreapp2.0\UpperConfidenceBound.runtimeconfig.dev.json
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\bin\Debug\netcoreapp2.0\UpperConfidenceBound.dll
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\bin\Debug\netcoreapp2.0\UpperConfidenceBound.pdb
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.csprojAssemblyReference.cache
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.csproj.CoreCompileInputs.cache
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.AssemblyInfoInputs.cache
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.AssemblyInfo.cs
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.dll
+C:\Dev\Learning\ReinforcementLearning\UCB\UCB\UpperConfidenceBound\obj\Debug\netcoreapp2.0\UpperConfidenceBound.pdb

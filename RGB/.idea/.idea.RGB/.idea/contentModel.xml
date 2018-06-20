@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ContentModelStore">
+    <e p="C:\Dev\Learning\RGB" t="IncludeFlat">
+      <e p="Coach" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="Coach.csproj" t="IncludeRecursive" />
+        <e p="Extensions.cs" t="Include" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="netcoreapp2.0" t="Include">
+              <e p="Coach.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="Program.cs" t="Include" />
+        <e p="RGBDto.cs" t="Include" />
+      </e>
+      <e p="Network" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="Maths.cs" t="Include" />
+        <e p="MLPSigmoidSoftmax.cs" t="Include" />
+        <e p="Network.csproj" t="IncludeRecursive" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="netcoreapp2.0" t="Include">
+              <e p="Network.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+      </e>
+      <e p="packages" t="ExcludeRecursive" />
+      <e p="RGB.sln" t="IncludeFlat" />
+    </e>
+    <e p="C:\Users\marcello.borges\.Rider2017.3\system\resharper-host\local\Transient\ReSharperHost\v11\SolutionCaches\_RGB.-92725696.00" t="ExcludeRecursive" />
+  </component>
+</project>
