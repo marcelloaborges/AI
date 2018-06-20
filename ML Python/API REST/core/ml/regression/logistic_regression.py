@@ -12,25 +12,31 @@ class LogisticRegression():
         y = dataset.iloc[:, 2].values
 
         from sklearn.cross_validation import train_test_split as tts
-        x_train, x_test, y_train, y_test = tts(x, y, test_size = 0.1, random_state = 0)
+        x_train, x_test, y_train, y_test = tts(x, y, test_size = 0.2, random_state = 0)
 
         from sklearn.preprocessing import StandardScaler
         sc_x = StandardScaler()
 
-        x_train = sc_x.fit_transform(x_train)
-        x_test = sc_x.fit_transform(x_test)
-
+        x_train_sc = sc_x.fit_transform(x_train)
+        x_test_sc = sc_x.fit_transform(x_test)
 
         from sklearn.linear_model import LogisticRegression
         #FOR LINEAR LOGISTIC REGRESSION => ONLY TWO OUTPUTS (SIGMOID)
         llr = LogisticRegression(random_state = 0)
 
-        llr.fit(x_train, y_train)
+        llr.fit(x_train_sc, y_train)
 
-        #COMPARING RESULTS
-        from sklearn import metrics
+        y_pred = llr.predict(x_test_sc)
 
-        print("Multinomial Logistic regression Train Accuracy :: ", metrics.accuracy_score(y_train, mlr.predict(x_train)))
-        print("Multinomial Logistic regression Test Accuracy :: ", metrics.accuracy_score(y_test, mlr.predict(x_test)))
+        result = []
+        for i in range(0, len(y_pred)):
+            result.append(
+                {
+                    'Age': x_test.tolist()[i][0],
+                    'Salary': x_test.tolist()[i][1],
+                    'Expected': y_test.tolist()[i],
+                    'Preditect': y_pred.tolist()[i],
+                }
+            )
 
-        return [0]
+        return result
