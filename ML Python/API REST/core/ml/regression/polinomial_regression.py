@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from io import StringIO
 
-class PolynomialRegression():
+class PolynomialRegression:
 
     def Run(self, csv):
         dataset = pd.read_csv(StringIO(csv))
@@ -32,5 +32,7 @@ class PolynomialRegression():
                     'Preditect': y_pred[i],
                 }
             )
+        
+        print(result)
 
         return result

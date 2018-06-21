@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt #plots
 import pandas as pd #manage datasets
 from io import StringIO
 
-class SimpleLinearRegression():
+class SimpleLinearRegression:
 
     def Run(self, csv):
         dataset = pd.read_csv(StringIO(csv))
@@ -30,5 +30,7 @@ class SimpleLinearRegression():
                     'Preditect': y_pred[i],
                 }
             )
+
+        print(result)
 
         return result

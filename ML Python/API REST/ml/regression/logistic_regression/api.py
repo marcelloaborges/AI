@@ -1,5 +1,5 @@
 from flask.views import MethodView
-from flask import jsonify, request, redirect, url_for
+from flask import jsonify, request
 
 #ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 ALLOWED_EXTENSIONS = set(['csv'])

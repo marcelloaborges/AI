@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from io import StringIO
 
-class LogisticRegression():
+class LogisticRegression:
 
     def Run(self, csv):
         dataset = pd.read_csv(StringIO(csv))
@@ -38,5 +38,7 @@ class LogisticRegression():
                     'Preditect': y_pred.tolist()[i],
                 }
             )
+
+        print(result)
 
         return result
