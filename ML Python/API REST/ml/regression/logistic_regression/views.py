@@ -9,7 +9,4 @@ logistic_regression_view = LogisticRegressionApi.as_view('logistic_regression_ap
 
 #ROUTES
 logistic_regression_app.add_url_rule('/ml/regression/logistic_regression', endpoint="", 
-    view_func=logistic_regression_view, methods=['GET',])
-
-logistic_regression_app.add_url_rule('/ml/regression/logistic_regression', 
-    view_func=logistic_regression_view, methods=['POST',])
+    view_func=logistic_regression_view, methods=['GET', 'POST'])

@@ -8,6 +8,4 @@ ab_test_app = Blueprint('ab_test_app', __name__)
 ab_test_views = ABTestApi.as_view('ab_test')
 
 #ROUTES
-ab_test_app.add_url_rule('/ml/reinforcement_learning/ab_test', view_func=ab_test_views, methods=['GET',])
-
-ab_test_app.add_url_rule('/ml/reinforcement_learning/ab_test', view_func=ab_test_views, methods=['POST',])
+ab_test_app.add_url_rule('/ml/reinforcement_learning/ab_test', view_func=ab_test_views, methods=['GET', 'POST'])
