@@ -1,5 +1,6 @@
 from flask.views import MethodView
 from flask import jsonify, request, redirect, url_for
+from flask import render_template
 
 #ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 ALLOWED_EXTENSIONS = set(['csv'])
@@ -9,7 +10,7 @@ from core.ml.regression.simple_linear_regression import SimpleLinearRegression
 class SimpleLinearRegressionApi(MethodView):
 
     def get(self):
-        return "Simple Linear Regression Home", 200    
+        return render_template('ml/regression/simple_linear_regression/index.html'), 200    
 
     def post(self):        
         if 'file' not in request.files:                        

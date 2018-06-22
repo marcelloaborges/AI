@@ -1,6 +1,7 @@
 from flask.views import MethodView
+from flask import render_template
 
 class MLApi(MethodView):
 
     def get(self):
-        return "Machine Learning Home"
+        return render_template('ml/index.html')

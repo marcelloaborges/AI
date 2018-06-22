@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <!-- <script src="simple_linear_regression_ctrl.js"></script> -->
+</head>
+<body>
+    <h1>It's simple and easy ^^ =D</h1>
+
+    <h3>O que é</h3>
+
+    <p>
+        Uma regressão linear é um método que faz <i>"previsões/estimativas"</i> baseado em um conjunto de dados e que utiliza 
+        como base uma função de primeiro grau do seguinte formato:
+    </p>
+    <p>
+        y = ax + b
+    </p>
+    <p>
+        A técnica é simples e permite realizar estimativas com facilidade porém a precisão cai 
+        caso o a variância do conjunto de dados utilizado como base para "previsão/estimativa" 
+        seja muito alta. 
+        Isso acontece devido ao fato de que uma função de primeiro grau consegue gerar apenas linhas
+        e caso a variância dos dados seja muito alta, uma linha não consegue ser sufienciente para abrangir 
+        todos os dados
+    </p>
+    <img src='/static/img/simple_linear_regression.jpg'  />
+
+    <p>Vamos esclarecer com um exemplo prático</p>
+
+    <div id="form">
+        <label for="file">Arquivo:</label>
+        <input id="file" type="file" ref="file" v-on:change="hanldeFileUpload()" placeholder="Selecione..."/>
+        <button type="submit" v-on:click="submitFile()">Executar</button>
+    </div>
+        
+    <script>
+        var app = new Vue( {
+            el:'#form',            
+            methods:{
+                submitFile(){
+                    let formData = new FormData();
+
+                    formData.append('file', this.file);
+
+                    axios.post( '/ml/regression/simple_linear_regression', 
+                        formData,
+                            {
+                                headers: { 'Content-Type': 'multipart/form-data'}
+                            }
+                        )
+                        .then(function(response){
+                            console.log(response.data);
+                        })
+                        .catch(function(error){
+                            console.log(error.response.data);
+                        });
+                },
+
+                hanldeFileUpload(){
+                    this.file = this.$refs.file.files[0];
+                }
+            }
+        })
+    </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 from flask.views import MethodView
+from flask import render_template
 
 class RegressionApi(MethodView):
 
     def get(self):
-        return "Regression Home"
+        return render_template('ml/regression/index.html')
