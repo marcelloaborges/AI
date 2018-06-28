@@ -4,68 +4,276 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+    <title>LaBHs - Regressão Linear Simples</title>
 
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <!-- <script src="simple_linear_regression_ctrl.js"></script> -->
 </head>
 <body>
-    <h1>It's simple and easy ^^ =D</h1>
-
-    <h3>O que é</h3>
+    <h1>Regressão Linear Simples</h1>
 
     <p>
-        Uma regressão linear é um método que faz <i>"previsões/estimativas"</i> baseado em um conjunto de dados e que utiliza 
-        como base uma função de primeiro grau do seguinte formato:
+        E ai galera, só de bobs?
     </p>
     <p>
-        y = ax + b
+        Se você tá aqui das duas uma.                
     </p>
+    <ol>
+        <li>Você leu sobre regressão e quer saber mais.</li>
+        <li>Você é mais agoniado do que eu e leu "exemplos práticos" no post anterior e agora tá aqui com pressa e vai ficar 
+            perdido porque não entendeu o básico da coisa.</li>
+    </ol>
     <p>
-        A técnica é simples e permite realizar estimativas com facilidade porém a precisão cai 
-        caso o a variância do conjunto de dados utilizado como base para "previsão/estimativa" 
-        seja muito alta. 
-        Isso acontece devido ao fato de que uma função de primeiro grau consegue gerar apenas linhas
-        e caso a variância dos dados seja muito alta, uma linha não consegue ser sufienciente para abrangir 
-        todos os dados
+        Se foi o 2, já clica <a href="/ml/regression">aqui</a> e lê o post anterior porque senão você vai sair dizendo que eu 
+        não explico direito... '-'
     </p>
-    <img src='/static/img/simple_linear_regression.jpg'  />
 
-    <p>Vamos esclarecer com um exemplo prático</p>
+    <p>
+        Se paciência é o seu forte (me vende um pouco porque to precisando =D), e você se enquadra no caso 1, bora lá
+        que vou explicar como fazer uma <b>Regressão Linear Simples</b>.
+    </p>
+    <p>
+        Para entendermos o conceito de Regressão Linear Simples precisamos avaliar 3 questões:
+    </p>
+    <ul>
+        <li>O que é Regressão? => você já sabe o que é. =D</li>
+        <li>Por que Linear? => porque o resultado dela é uma linha.</li>
+        <li>Por que Simples? => porque utiliza apenas duas variáveis.</li>
+    </ul>
+    <p>
+        Pronto!!! Easy né não? Pense um pouco a respeito. Eu aguardo... e ai? Já? =D
+    </p>
+    <p>
+        Que???? Já não... Pera, pera. Pensando ainda... Entendi... Tá fácil... Capitei vossa mensagem.
+        Linear porque lembra linha e o resultado da Regressão Linear Simples é uma linha. -1.
+        E duas variáveis... tem o esquema da sinuca, local vs direção.
+        Tô manjando já desse negócio. Go next?
+    </p>
+    <p>
+        Calma ai jovem porque senão o carro passa na frente dos bois. É mais ou menos isso.
+    </p>
+    <p>
+        Vamos precisar lembrar das aulas de matemática para deixar isso ai mais claro.
+        A Regressão Linear Simples produz uma função de primeiro grau com somente duas variáveis,
+        y e x, onde o valor de y é diretamente dependente de x.
+    </p>
+    <p>
+        A forma base é essa aqui:
+    </p>
+    <img src='/static/gif/ml/regression/simple_linear_regression/fxy.jpg'/>
+    <p>
+        Sempre vamos estar buscando o valor de y a partir de x e a função que da esse valor vai sermpre ter o formato acima.
+        Beleza sobre as duas variáveis e o porque de ser simples?
+    </p>
+    <p>
+        Agora, sobre o resultado disso ser uma linha, precisamos de outro conceito:
+        o resultado de uma função de primeiro grau é sempre uma linha (ou uma reta). Lembra disso?    
+        Não? Lembra da sinuca? Visualiza comigo então.
+    </p>
+    <ul>
+        <li>
+            O local que você acerta no bolão é x
+        </li>
+        <li>
+            A direção em que ele vai correr é y.
+        </li>        
+    </ul>
+    <p>
+        Com isso em mente, é fácil ver que a direção depende diretamente do local onde o bolão tomou o cascudo. Certo?
+        Ficou mais claro agora?
+    </p>
+    <p>
+        E porque uma uma função de primeiro grau sempre gera uma linha? Isso só dá pra ver na prática. Se quiser tirar
+        a prova dos 9, faz ai no caderno/bloco/paint/quadro/parede (opa, parede tem que checar antes), um gráfico de x por y, 
+        diz que a é 1, b é 1, e x vai vai de 1 a 5 que você vai enxergar uma linha rapidinho. 
+        Mas da pra usar esse gif aqui de exemplo também.
+    </p>
+    <img src='/static/gif/ml/regression/sinuca.webp'/>
+    <p>
+        Sinuquinha básica. Direção que o bolão vai vs o local em que o bolão leva o cascudo. Se gerarmos valores pra essas
+        variáveis vamos obter a linha de resultado mostrada pelo laser no gif acima.
+    </p>
+    <p>
+        E agora, suave? Vamos recapitular então:
+    </p>
+    <ul>
+        <li>O que é Regressão? => Ok.</li>
+        <li>Por que Linear? => Ok.</li>
+        <li>Por que Simples? => Ok.</li>
+    </ul>
+    <p>
+        Tudo certo então. So far, so good! Eh nois! =D
+    </p>
+    <p>
+        Agora vai ficar legal. Já sabemos o conceito e você deve tá pensando que agora eu vou te explicar como
+        fazer mágica que prevê quando o mundo vai acabar. Vai ficar no vácuo =D. Não vou nesse post como fazer os cálculos 
+        pra que geram a função resultado da Regressão Linear Simples. Num futuro próximo nois vê isso, ou se você quiser, pode
+        me procurar que passo os esquemas.
+    </p>
+    <img src='/static/gif/umad.webp'/>
+    <p>
+        Mas também não vou aplicar o vazare e deixar você a ver navios só com esse monte de ideias e teorias na cabeça.
+    </p>
+    <p>
+        A galera da inovação está disponibilizando uma API com algumas POCs e dentro delas já temos um mini motor para simulação
+        de uma Regressão Linear Simples.
+    </p>
+    <p>
+        Vou deixar pra vocês um mini "faça-você-mesmo-a-sua-regressão-linear-simples" e quem 
+        tiver interesse em testar algum cenário e ver os resultados tem duas opções:
+    </p>
+
+    <ol>
+        <li>Rodar o exemplo pronto</li>
+        <li>Submeter um csv com o formato descrito a seguir e avaliar o resultado do seu cenário</li>
+    </ol>
+
+    <p>
+        Para rodar o exemplo pronto, clique em "exemplo pronto". 
+        <img src='/static/gif/seriously.webp' width="50"/>
+    </p>
+
+    <p>
+        Parar criar o seu cenário, você precisa de um arquivo csv no seguinte formato:
+    </p>
+
+    <table border="1">
+        <tr>
+            <th>x</th>
+            <th>y</th>
+        </tr>
+        <tr>
+            <td>1.1</td><td>39343.00</td>
+        </tr>
+        <tr>
+            <td>1.3</td><td>46205.00</td>
+        </tr>
+        <tr>
+            <td>1.5</td><td>37731.00</td>
+        </tr>
+        <tr>
+            <td>2.0</td><td>43525.00</td>
+        </tr>
+        <tr>
+            <td>2.2</td><td>39891.00</td>
+        </tr>
+        <tr>
+            <td>2.9</td><td>56642.00</td>
+        </tr>
+        <tr>
+            <td>3.0</td><td>60150.00</td>
+        </tr>
+        <tr>
+            <td>3.2</td><td>54445.00</td>
+        </tr>
+        <tr>
+            <td>3.2</td><td>64445.00</td>
+        </tr>
+        <tr>
+            <td>3.7</td><td>57189.00</td>
+        </tr>        
+    </table>
+
+    <p>Só pra fixar, x é a sua variável independente, e o y é a variavel que você deseja prever. =D</p>
+
+    <p>O resultado vai ter o seguinte formato:</p>
+    <table border="1">
+        <tr>
+            <th>x</th>
+            <th>y_exp</th>
+            <th>y_pred</th>
+        </tr>
+        <tr>
+            <td>1.5</td><td>37731</td><td>40748.96</td>
+        </tr>
+        <tr>
+            <td>10.3</td><td>122391</td><td>122699.62</td>
+        </tr>
+    </table>
+
+    <p>
+        Esse motor de Regressão Linear Simples vai utilizar o arquivo submetido como base de treinamento e como testes.
+        Basicamente, ele vai selecionar 20% dos dados para teste e os outros 80% como base de treinamento, depois fazer os 
+        cálculos mágicos, gerar a previsão e retornar os resultados no formato acima: 
+        valor de teste, valor esperado e valor previsto.
+    </p>
+
+    <p>
+        Então mãos a obra! Monta ai o seu arquivo csv e se diverte um pouco no "faça-você-mesmo-a-sua-regressão-linear-simples" 
+        para entender e visualizar a precisão da Regressão Linear Simples. É legal "pa carai" =D...
+    </p>
+
+    <h4>Faça-você-mesmo-a-sua-regressão-linear-simples</h4>
 
     <div id="form">
         <label for="file">Arquivo:</label>
-        <input id="file" type="file" ref="file" v-on:change="hanldeFileUpload()" placeholder="Selecione..."/>
-        <button type="submit" v-on:click="submitFile()">Executar</button>
-    </div>
-        
+        <input id="file" type="file" ref="file" v-on:change="handleFileUpload()" placeholder="Selecione..."/>
+        <button type="submit" v-on:click="submitFile(false)">Executar</button>
+        <button type="submit" v-on:click="submitFile(true)">Exemplo Pronto</button>
+        <table v-if="show" border="1">
+            <tr>
+                <th>x</th>
+                <th>y_exp</th>
+                <th>y_pred</th>
+            </tr>
+            <tr v-for="r in result">
+                <td>${r.Test}</td><td>${r.Expected}</td><td>${r.Predicted}</td>
+            </tr>
+        </table>
+    </div>        
+    
+    <p>
+        Bom, é isso galera. Espero que essa maravilha de post escrita pela minha fantástica pessoa possa ser útil e 
+        demostre um pouquinho do que estamos trabalhando e desenvolvendo aqui no LABHS.
+    </p>
+    <p>
+        Se tiverem ideias, é tudo muito bem vindo. É só chamar pra tomar um café =D.
+    </p>
+    <p>
+        E por hoje é só pessoal.
+    </p>
+    <p>
+        Valeu, flw... fui. =P
+    </p>    
+
+    <img src='/static/gif/ml/regression/chairmith.gif'/>
+
     <script>
         var app = new Vue( {
-            el:'#form',            
+            el: '#form',    
+            delimiters: ['${', '}'],
+            data: {
+                show: false,
+                result: []
+            }, 
             methods:{
-                submitFile(){
+                submitFile(example){                    
                     let formData = new FormData();
 
                     formData.append('file', this.file);
+                    formData.set('example', example);
 
                     axios.post( '/ml/regression/simple_linear_regression', 
-                        formData,
+                            formData,
                             {
-                                headers: { 'Content-Type': 'multipart/form-data'}
+                                headers: { 'Content-Type': 'multipart/form-data'},                                
                             }
                         )
-                        .then(function(response){
-                            console.log(response.data);
+                        .then(function(response){                            
+                            console.log(response.data);                            
+                            app.$set(app, 'show', true);
+                            app.$set(app, 'result', response.data);
                         })
                         .catch(function(error){
                             console.log(error.response.data);
+                            app.$set(app, 'show', false);
+                            app.$set(app, 'result', []);
                         });
                 },
-
-                hanldeFileUpload(){
+                
+                handleFileUpload(){
                     this.file = this.$refs.file.files[0];
-                }
+                },
             }
         })
     </script>

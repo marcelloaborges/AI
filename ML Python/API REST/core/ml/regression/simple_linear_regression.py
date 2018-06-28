@@ -6,7 +6,7 @@ from io import StringIO
 class SimpleLinearRegression:
 
     def Run(self, csv):
-        dataset = pd.read_csv(StringIO(csv))
+        dataset = pd.read_csv(StringIO(csv), delimiter=';')
         x = dataset.iloc[:, 0:1].values
         y = dataset.iloc[:, 1].values
 
@@ -26,8 +26,9 @@ class SimpleLinearRegression:
         for i in range(0, len(y_pred)):
             result.append(
                 {
+                    'Test': x_test[i][0],
                     'Expected': y_test[i],
-                    'Preditect': y_pred[i],
+                    'Predicted': y_pred[i],
                 }
             )
 
