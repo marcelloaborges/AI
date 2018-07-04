@@ -1,5 +1,6 @@
 from flask.views import MethodView
-from flask import jsonify, request
+from flask import jsonify, request, redirect, url_for
+from flask import render_template
 
 import json
 from jsonschema import Draft4Validator
@@ -10,9 +11,9 @@ from ml.reinforcement_learning.AB_test.ab_test_request import ab_test_request
 from core.ml.reinforcement_learning.AB_test.upper_confidence_bound import UpperConfidenceBound
 
 class ABTestApi(MethodView):
-
-    def get(self):
-        return "A/B Test Home"
+    
+    def get(self): 
+        return render_template('ml/reinforcement_learning/AB_test/index.html'), 200    
 
     def post(self):
         ab_test_json = request.json

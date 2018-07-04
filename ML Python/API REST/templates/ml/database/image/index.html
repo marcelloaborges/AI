@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>LaBHs - Imagens</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Upload de Imagens</h1>    
+
+    <div id="form">
+        <select name="category" id="category" v-model='category'>
+            <option value="0">Caminhão</option>
+            <option value="1">Lata</option>
+        </select>
+        <select v-if="category==1" name="sub_category" id="sub_category" v-model="sub_category">
+            <option value="0">Skol</option>
+            <option value="1">Brahma</option>
+            <option value="2">Antartica</option>
+        </select>
+        <label for="file">Arquivo:</label>
+        <input id="file" type="file" ref="file" v-on:change="handleFileUpload()" placeholder="Selecione..."/>
+        <button type="submit" v-on:click="submitFile()">Executar</button>
+        <span v-if="show" style="color:green">Upload completo.</span>
+        <span v-if="error" style="color:red">Erro no upload.</span>
+    </div>        
+
+    <script>
+        var app = new Vue( {
+            el: '#form',    
+            delimiters: ['${', '}'],
+            data: {
+                show: false,
+                error: false,                
+                category: 0,
+                sub_category: 0
+            }, 
+            methods:{
+                submitFile(){                    
+                    let formData = new FormData();
+
+                    formData.append('file', this.file);
+                    formData.set('category', this.category);
+                    formData.set('sub_category', this.sub_category);
+
+                    axios.post( '/ml/database/image', 
+                            formData,
+                            {
+                                headers: { 'Content-Type': 'multipart/form-data'},                                
+                            }
+                        )
+                        .then(function(response){                            
+                            console.log(response.data);                            
+                            app.$set(app, 'show', true);
+                            app.$set(app, 'error', false);
+                        })
+                        .catch(function(error){
+                            console.log(error.response.data);
+                            app.$set(app, 'show', false);
+                            app.$set(app, 'error', true);
+                        });
+                },         
+                handleFileUpload(){
+                    this.file = this.$refs.file.files[0];
+                },
+            }
+        })
+    </script>
+
+</body>
+</html>
