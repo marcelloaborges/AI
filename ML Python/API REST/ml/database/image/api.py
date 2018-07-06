@@ -28,34 +28,39 @@ class DatabaseImageApi(MethodView):
     def get(self): 
         return render_template('ml/database/image/index.html'), 200    
 
-    def post(self):                                       
-        if 'file' not in request.files:                        
+    def post(self):                   
+        if not request.files:                        
             return jsonify('No file part'), 400
 
-        file = request.files['file']
+        files = request.files
 
-        if file.filename == '':                        
-            return 'No selected file', 400        
+        for f in files:
+            file = files.get(f)
 
-        if file and allowed_file(file.filename):    
-            category = request.form.get('category')
-            sub_category = request.form.get('sub_category')
-            filename = secure_filename(file.filename)
+            if file.filename == '':                        
+                return 'No selected file', 400        
 
-            image = Image()         
-               
-            image.name = filename
-            image.category = category
-            image.sub_category = sub_category
+            if(allowed_file(file.filename)):
+                category = request.form.get('category')
+                sub_category = request.form.get('sub_category')
+                filename = secure_filename(file.filename)
 
-            image.file.put(file)
+                image = Image()         
+                
+                image.name = filename
+                image.category = category
+                image.sub_category = sub_category
 
-            print('saving...')
-            image.save()            
+                image.file.put(file)
 
-            return jsonify(image), 200        
-    
-        return 'Not allowed file', 400
+                print('saving...')
+                image.save()
+            
+            else:
+                return 'Not allowed file \n alowed [png, jpg, bmp]', 400
+
+        return jsonify('sucess'), 200        
+            
 
 def allowed_file(filename):
     return '.' in filename and \

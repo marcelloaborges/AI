@@ -22,8 +22,8 @@
             <option value="1">Brahma</option>
             <option value="2">Antartica</option>
         </select>
-        <label for="file">Arquivo:</label>
-        <input id="file" type="file" ref="file" v-on:change="handleFileUpload()" placeholder="Selecione..."/>
+        <label for="files">Arquivo:</label>
+        <input type="file" id="files" ref="files" multiple v-on:change="handleFileUploads()"/>
         <button type="submit" v-on:click="submitFile()">Executar</button>
         <span v-if="show" style="color:green">Upload completo.</span>
         <span v-if="error" style="color:red">Erro no upload.</span>
@@ -43,7 +43,19 @@
                 submitFile(){                    
                     let formData = new FormData();
 
-                    formData.append('file', this.file);
+                    if(this.files === undefined || this.files.length == 0)
+                    {
+                        console.log('Any file selected');
+                        return;
+                    }
+
+                    //formData.append('file', this.file);
+                    for(var i = 0; i < this.files.length; i++ ){
+                        let file = this.files[i];
+
+                        formData.append('files[' + i + ']', file);
+                    }
+                    
                     formData.set('category', this.category);
                     formData.set('sub_category', this.sub_category);
 
@@ -64,8 +76,8 @@
                             app.$set(app, 'error', true);
                         });
                 },         
-                handleFileUpload(){
-                    this.file = this.$refs.file.files[0];
+                handleFileUploads(){
+                    this.files = this.$refs.files.files;
                 },
             }
         })
