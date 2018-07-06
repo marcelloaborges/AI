@@ -24,7 +24,7 @@
         </select>
         <label for="files">Arquivo:</label>
         <input type="file" id="files" ref="files" multiple v-on:change="handleFileUploads()"/>
-        <button type="submit" v-on:click="submitFile()">Executar</button>
+        <button type="submit" v-on:click="submitFile()">Enviar</button>
         <span v-if="show" style="color:green">Upload completo.</span>
         <span v-if="error" style="color:red">Erro no upload.</span>
     </div>        
