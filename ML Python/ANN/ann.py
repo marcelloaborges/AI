@@ -46,13 +46,14 @@ classifier.add(Dense(output_dim = 6, init = 'uniform',  activation = 'relu', inp
 classifier.add(Dense(output_dim = 6, init = 'uniform',  activation = 'relu'))
 
 #OUTPUT
-classifier.add(Dense(output_dim = 1, init = 'uniform',  activation = 'sigmoid'))
+classifier.add(Dense(output_dim = 1, init = 'uniform',  activation = 'tanh'))
 
 #CALC
 #OPTIMIZER 
 #LOSS => LOSS FUNCTION => FOR BINARY OUTPUT(SIGMOID) USUALLY WE USE 'BINARY CROSS ENTROPY'
 #LOSS => LOSS FUNCTION => FOR N CLASSES OUTPUT(SOFTMAX) USUALLY WE USE 'CROSS ENTROPY'
-classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+#classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+classifier.compile(optimizer = 'adam', loss = 'mse', metrics = ['accuracy'])
 
 classifier.fit(x_train, y_train, batch_size = 10, epochs = 100)
 
