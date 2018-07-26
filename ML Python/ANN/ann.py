@@ -33,6 +33,7 @@ sc = StandardScaler()
 x_train = sc.fit_transform(x_train)
 x_test = sc.transform(x_test)
 
+print(x_train[0], y_train[0])
 
 #ANN BUILDING AND PROCESSING
 from keras.models import Sequential
@@ -55,7 +56,7 @@ classifier.add(Dense(output_dim = 1, init = 'uniform',  activation = 'tanh'))
 #classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
 classifier.compile(optimizer = 'adam', loss = 'mse', metrics = ['accuracy'])
 
-classifier.fit(x_train, y_train, batch_size = 10, epochs = 100)
+classifier.fit(x_train, y_train)
 
 
 y_pred = classifier.predict(x_test)
