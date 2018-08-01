@@ -22,18 +22,21 @@ class Network():
 
         self.neural_network = Sequential()
         
-        self.neural_network.add(Dense(output_dim = self.hidden_size, 
-            kernel_regularizer = regularizers.l2(0.01),
-            activity_regularizer = regularizers.l1(0.01),    
+        self.neural_network.add(Dense(output_dim = self.hidden_size,             
             init = 'uniform',  
             activation = 'relu', 
             input_dim = self.input_size))
-        self.neural_network.add(Dense(output_dim = self.output_size, init = 'uniform',  activation = 'softmax'))
-        adam = optimizers.Adam(lr=0.01, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)        
-        self.neural_network.compile(optimizer = adam, loss = 'categorical_crossentropy', metrics = ['accuracy'])
+        self.neural_network.add(Dense(output_dim = self.output_size, 
+            kernel_regularizer = regularizers.l2(0.01),
+            activity_regularizer = regularizers.l1(0.01),
+            init = 'uniform',
+            activation = 'softmax'))
+        adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)            
+        self.neural_network.compile(optimizer = adam, loss = 'mean_squared_error', metrics = ['accuracy'])
+        #self.neural_network.compile(optimizer = adam, loss = 'categorical_crossentropy', metrics = ['accuracy'])
     
-    def forward(self, state, batch_size):
-        state_reshape = np.reshape(state, (batch_size ,self.input_size))
+    def forward(self, state, batch_size = 1):
+        state_reshape = np.reshape(state, (batch_size ,self.input_size))        
         q_values = self.neural_network.predict(state_reshape)
         return q_values
 
@@ -74,33 +77,31 @@ class Dqn():
         self.reward_window_size = 1000
     
     def select_action(self, state):
-        probs = self.network.forward(state, 1) # TEMPERATURE MAYBE        
+        probs = self.network.forward(state) # TEMPERATURE MAYBE        
         action = np.argmax(probs)                        
         print(probs, action)
         return action
         
-    def learn(self, batch_state, batch_next_state, batch_reward, batch_action, batch_size):        
-        next_outputs = self.network.forward(batch_next_state, self.batch_size)                        
+    def learn(self, batch_state, batch_next_state, batch_reward, batch_action, batch_size):
+        outputs = self.network.forward(batch_state, self.batch_size)
+        next_outputs = self.network.forward(batch_next_state, self.batch_size)                                
         target = []
-        for i in range(len(next_outputs)):            
-            #print(batch_state[i], batch_action[i], batch_reward[i])
-            next_outputs[i] = self.gamma * next_outputs[i] + batch_reward[i]            
+        for i in range(len(outputs)):                
+            best_action = np.argmax(next_outputs[i])
+            outputs[i][batch_action[i]] = self.gamma * next_outputs[i][batch_action[i]] + batch_reward[i]
 
             t = [0., 0., 0.]
-            best_action = np.argmax(next_outputs[i])            
-            t[best_action] = 1.            
-            target.append(np.array(t))
-            #print(np.array(batch_state[i]), np.array(target[i]))
-                                        
+            best_action_target = np.argmax(outputs[i])            
+            t[best_action_target] = 1.
+            target.append(np.array(t))             
+        
         self.network.learn(np.array(batch_state), np.array(target))
 
-    def update(self, reward, new_signal):
-        print(reward)
+    def update(self, reward, new_signal):        
         new_state = np.array(new_signal)        
         self.memory.push((self.last_state, new_state, self.last_action, self.last_reward))
         action = self.select_action(new_state)                
-        if len(self.memory.memory) > self.batch_size:           
-            #print(self.memory.memory)            
+        if len(self.memory.memory) > self.batch_size:                       
             batch_state, batch_next_state, batch_action, batch_reward = self.memory.sample(self.batch_size)
             self.learn(batch_state, batch_next_state, batch_reward, batch_action, self.batch_size)
         self.last_action = action

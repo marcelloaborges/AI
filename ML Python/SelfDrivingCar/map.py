@@ -105,7 +105,7 @@ class Game(Widget):
 
     def serve_car(self): # starting the car when we launch the application
         self.car.center = self.center # the car will start at the center of the map
-        self.car.velocity = Vector(1.5, 0) # the car will start to go horizontally to the right with a speed of 6
+        self.car.velocity = Vector(6, 0) # the car will start to go horizontally to the right with a speed of 6
 
     def update(self, dt): # the big update function that updates everything that needs to be updated at each discrete time t when reaching a new state (getting new signals from the sensors)
 
@@ -137,10 +137,10 @@ class Game(Widget):
         self.ball3.pos = self.car.sensor3 # updating the position of the third sensor (ball3) right after the car moved
 
         if sand[int(self.car.x),int(self.car.y)] > 0: # if the car is on the sand
-            self.car.velocity = Vector(.5, 0).rotate(self.car.angle) # it is slowed down (speed = 1)
+            self.car.velocity = Vector(1, 0).rotate(self.car.angle) # it is slowed down (speed = 1)
             last_reward = -1 # and reward = -1
         else: # otherwise
-            self.car.velocity = Vector(1.5, 0).rotate(self.car.angle) # it goes to a normal speed (speed = 6)
+            self.car.velocity = Vector(6, 0).rotate(self.car.angle) # it goes to a normal speed (speed = 6)
             last_reward = -0.2 # and it gets bad reward (-0.2)
             if distance < last_distance: # however if it getting close to the goal
                 last_reward = 0.1 # it still gets slightly positive reward 0.1                
