@@ -10,10 +10,17 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras import regularizers
 from keras import optimizers
+from keras.optimizers import SGD
+from keras.callbacks import EarlyStopping
+import keras.backend as K
 
 # Creating the architecture of the Neural Network
 
 class Network():
+
+    def custom_loss(t, y, x):
+        print(t, y, x)
+        return K.flatten(0.5)
     
     def __init__(self, input_size, nb_action):        
         self.input_size = input_size
@@ -31,17 +38,29 @@ class Network():
             activity_regularizer = regularizers.l1(0.01),
             init = 'uniform',
             activation = 'softmax'))
-        adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)            
+            
+        #sgd = SGD(lr = 0.001, decay = 1e-6, momentum = 0.9, nesterov = True)
+        #self.neural_network.compile(optimizer = sgd, loss = 'mean_squared_error', metrics = ['accuracy'])
+        #categorical_crossentropy     
+        #mean_squared_error        
+
+        adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0.0, amsgrad=False)           
         self.neural_network.compile(optimizer = adam, loss = 'mean_squared_error', metrics = ['accuracy'])
-        #self.neural_network.compile(optimizer = adam, loss = 'categorical_crossentropy', metrics = ['accuracy'])
     
     def forward(self, state, batch_size = 1):
         state_reshape = np.reshape(state, (batch_size ,self.input_size))        
         q_values = self.neural_network.predict(state_reshape)
         return q_values
 
-    def learn(self, input, target):        
+    def learn(self, input, target):
         self.neural_network.fit(input, target)
+        #self.learning_rating_tracker()
+            
+    def learning_rating_tracker(self):
+        optimizer = self.neural_network.optimizer        
+        iterations = K.eval(optimizer.iterations)
+        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * iterations)))
+        print('\nLR: {:.6f}\n'.format(lr))        
 
 # Implementing Experience Replay
 
@@ -77,8 +96,9 @@ class Dqn():
         self.reward_window_size = 1000
     
     def select_action(self, state):
-        probs = self.network.forward(state) # TEMPERATURE MAYBE        
-        action = np.argmax(probs)                        
+        probs = self.network.forward(state) # TEMPERATURE MAYBE            
+        action = np.argmax(probs)
+        #print(state)
         print(probs, action)
         return action
         
