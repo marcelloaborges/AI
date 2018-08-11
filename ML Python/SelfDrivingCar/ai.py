@@ -5,63 +5,39 @@
 import numpy as np
 import random
 import os
-import keras
-from keras.models import Sequential
-from keras.layers import Dense
-from keras import regularizers
-from keras import optimizers
-from keras.optimizers import SGD
-from keras.callbacks import EarlyStopping
-import keras.backend as K
+import tflearn
+from tflearn.layers.core import input_data, fully_connected
+from tflearn.layers.estimator import regression
+from statistics import median, mean
 
 # Creating the architecture of the Neural Network
 
 class Network():
 
-    def custom_loss(t, y, x):
-        print(t, y, x)
-        return K.flatten(0.5)
-    
     def __init__(self, input_size, nb_action):        
         self.input_size = input_size
         self.hidden_size = 30
         self.output_size = nb_action
 
-        self.neural_network = Sequential()
-        
-        self.neural_network.add(Dense(output_dim = self.hidden_size,             
-            init = 'uniform',  
-            activation = 'relu', 
-            input_dim = self.input_size))
-        self.neural_network.add(Dense(output_dim = self.output_size, 
-            kernel_regularizer = regularizers.l2(0.01),
-            activity_regularizer = regularizers.l1(0.01),
-            init = 'uniform',
-            activation = 'softmax'))
-            
-        #sgd = SGD(lr = 0.001, decay = 1e-6, momentum = 0.9, nesterov = True)
-        #self.neural_network.compile(optimizer = sgd, loss = 'mean_squared_error', metrics = ['accuracy'])
-        #categorical_crossentropy     
-        #mean_squared_error        
+        NN = input_data(shape=[None, self.input_size, 1], name='input')
 
-        adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0.0, amsgrad=False)           
-        self.neural_network.compile(optimizer = adam, loss = 'mean_squared_error', metrics = ['accuracy'])
+        NN = fully_connected(NN, self.hidden_size, activation='relu')        
+        NN = fully_connected(NN, self.output_size, activation='sigmoid')
+
+        NN = regression(NN, optimizer='adam', learning_rate=0.001, loss='mean_square', name='output')
+
+        self.model = tflearn.DNN(NN, tensorboard_dir='log')
     
     def forward(self, state, batch_size = 1):
-        state_reshape = np.reshape(state, (batch_size ,self.input_size))        
-        q_values = self.neural_network.predict(state_reshape)
+        state_reshape = np.reshape(state, (batch_size, self.input_size, -1))        
+        q_values = self.model.predict(state_reshape)
         return q_values
 
     def learn(self, input, target):
-        self.neural_network.fit(input, target)
-        #self.learning_rating_tracker()
+        input_reshape = np.reshape(input, (100, 5, -1))
+        target_reshape = np.reshape(target, (100, 3))                    
+        self.model.fit(input_reshape, target_reshape, n_epoch=1, run_id='self_driving_car_test')        
             
-    def learning_rating_tracker(self):
-        optimizer = self.neural_network.optimizer        
-        iterations = K.eval(optimizer.iterations)
-        lr = K.eval(optimizer.lr * (1. / (1. + optimizer.decay * iterations)))
-        print('\nLR: {:.6f}\n'.format(lr))        
-
 # Implementing Experience Replay
 
 class ReplayMemory(object):
@@ -87,8 +63,7 @@ class Dqn():
         self.gamma = gamma
         self.reward_window = []
         self.network = Network(input_size, nb_action)
-        self.memory = ReplayMemory(100000)
-        # array([[ 1.,  1.,  1., -0.88716101,  0.88716101]])
+        self.memory = ReplayMemory(100000)        
         self.last_state = np.array([0., 0., 0., 0., 0.])
         self.last_action = 0
         self.last_reward = 0
@@ -97,25 +72,26 @@ class Dqn():
     
     def select_action(self, state):
         probs = self.network.forward(state) # TEMPERATURE MAYBE            
-        action = np.argmax(probs)
-        #print(state)
-        print(probs, action)
+        action = np.argmax(probs)        
+        #print(probs, action)
         return action
         
-    def learn(self, batch_state, batch_next_state, batch_reward, batch_action, batch_size):
+    def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
         outputs = self.network.forward(batch_state, self.batch_size)
         next_outputs = self.network.forward(batch_next_state, self.batch_size)                                
-        target = []
+
+        target = []        
         for i in range(len(outputs)):                
             best_action = np.argmax(next_outputs[i])
-            outputs[i][batch_action[i]] = self.gamma * next_outputs[i][batch_action[i]] + batch_reward[i]
-
-            t = [0., 0., 0.]
-            best_action_target = np.argmax(outputs[i])            
-            t[best_action_target] = 1.
-            target.append(np.array(t))             
+            outputs[i][batch_action[i]] = self.gamma * next_outputs[i][best_action] + batch_reward[i]
+            
+            outputs_sum = np.sum(outputs[i])
+            t = []
+            for o in outputs[i]:
+                t.append(o / outputs_sum)
+            target.append(t) 
         
-        self.network.learn(np.array(batch_state), np.array(target))
+        self.network.learn(batch_state, target)
 
     def update(self, reward, new_signal):        
         new_state = np.array(new_signal)        
@@ -123,7 +99,7 @@ class Dqn():
         action = self.select_action(new_state)                
         if len(self.memory.memory) > self.batch_size:                       
             batch_state, batch_next_state, batch_action, batch_reward = self.memory.sample(self.batch_size)
-            self.learn(batch_state, batch_next_state, batch_reward, batch_action, self.batch_size)
+            self.learn(batch_state, batch_next_state, batch_reward, batch_action)
         self.last_action = action
         self.last_state = new_state
         self.last_reward = reward
