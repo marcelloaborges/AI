@@ -70,34 +70,35 @@ class Player:
         # print(input)
         # print(scores)
 
-    def forward(self, state):                    
-        output = self.sess.run([ self.output ], feed_dict={ self.input: np.array([state]) })                                
-        return output
+    def play(self, state):                    
+        actions = self.sess.run([ self.output ], feed_dict={ self.input: np.array([state]) })
+        return actions
 
-    def play(self, state):                        
-        output = self.forward(state)
-        action = np.argmax(output)                
-        return action
+    # def play(self, state):                        
+    #     output = self.forward(state)
+    #     action = np.argmax(output)                
+    #     return action
 
     def learn(self):                
-        merged = tf.summary.merge_all()
+        # merged = tf.summary.merge_all()
         for episode in self.memory.read():
             state = episode[0]
             action = episode[1]
             reward = episode[2]
             next_state = episode[3]
 
-            output = self.forward(state)                
-            next_output = self.forward(next_state)
-
+            output = self.play(state)                
+            next_output = self.play(next_state)
+    
             action_next_output = np.argmax(next_output)               
-            new_value_action = self.gamma * next_output[0][action_next_output] + reward        
-            output[0][action] = new_value_action        
-               
-            self.sess.run([ self.optimizer ],  feed_dict={ self.input: np.array([ state ]), self.target: np.array([ output ]) })
-            summary, _ = self.sess.run([ merged, self.loss ],  feed_dict={ self.input: np.array([ state ]), self.target: np.array([ output ]) })
-            self.writter.add_summary(summary, self.count)
-            self.count += 1
+            new_value_action = self.gamma * next_output[0][0][action_next_output] + reward        
+            output[0][0][action] = new_value_action     
+                           
+            self.sess.run([ self.optimizer ],  feed_dict={ self.input: np.array([ state ]), self.target: np.array([ output[0][0] ]) })            
+            # summary, _ = self.sess.run([ merged, self.loss ],  feed_dict={ self.input: np.array([ state ]), self.target: np.array([ output[0][0] ]) })            
+            # self.writter.add_summary(summary, self.count)
+            # self.count += 1
+        self.memory.reset()
     
     def add_memory(self, state, action, reward, new_state):
         self.memory.add(state, action, reward, new_state)
@@ -117,7 +118,7 @@ class Memory:
     def read(self):
         episodes = []
         for i in range(len(self.state)):
-            episodes.append(self.state[i], self.action[i], self.reward[i], self.new_state[i])
+            episodes.append((self.state[i], self.action[i], self.reward[i], self.new_state[i]))
         return episodes
 
     def reset(self):

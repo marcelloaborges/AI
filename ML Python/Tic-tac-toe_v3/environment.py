@@ -151,16 +151,22 @@ class Environment:
                     state.append(1)
         return state
 
-    def apply_action(self, player, action):        
-        action_matrix = self.actions_array_matrix[action]        
-        self.board[action_matrix[0], action_matrix[1]] = player.action
+    def apply_action(self, player, actions):                  
+        sorted_actions = np.argsort(actions)        
+        for action in reversed(sorted_actions[0][0]):            
+            action_matrix = self.actions_array_matrix[action + 1]        
 
-        if self.check_end_game():
-            if self.winner == player:
-                return 1
-            elif self.check_draw():
-                return 0.5
+            if self.board[action_matrix[0], action_matrix[1]] != self._:
+                continue
+
+            self.board[action_matrix[0], action_matrix[1]] = player.action
+
+            if self.check_end_game():
+                if self.winner == player:
+                    return action, 1
+                elif self.check_draw():
+                    return action, 0.5
+                else:
+                    return action, 0
             else:
-                return 0
-        else:
-            return 0.5
+                return action, 0.5
