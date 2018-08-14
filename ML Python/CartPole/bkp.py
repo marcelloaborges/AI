@@ -14,57 +14,39 @@
 # import os    
 # os.environ['THEANO_FLAGS'] = "device=gpu,floatX=float32"  
 
-import random, math, gym
-import numpy as np
+import random, numpy, math, gym
 
 #-------------------- BRAIN ---------------------------
-import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import *
+from keras.optimizers import *
 
 class Brain:
     def __init__(self, stateCnt, actionCnt):
         self.stateCnt = stateCnt
         self.actionCnt = actionCnt
 
-        self._createModel()        
-        #saver = tf.train.import_meta_graph('./cartpole-basic.meta')
-        #saver.restore(self.sess, tf.train.latest_checkpoint('./'))        
+        self.model = self._createModel()
+        # self.model.load_weights("cartpole-basic.h5")
 
     def _createModel(self):
-        with tf.name_scope('input'):
-            self.input = tf.placeholder(tf.float32, [None, stateCnt], name='input')
-            self.target = tf.placeholder(tf.float32, [None, actionCnt], name='labels')
+        model = Sequential()
 
-        with tf.name_scope('h1'):
-            wh1 = tf.Variable(tf.random_normal([stateCnt, 64], mean=0, stddev=0.01), name='wh1')            
-            b1 = tf.Variable(tf.zeros([64]), name='bh1')            
+        model.add(Dense(output_dim=64, activation='relu', input_dim=stateCnt))
+        model.add(Dense(output_dim=actionCnt, activation='linear'))
 
-            h1 = tf.add(tf.matmul(self.input, wh1), b1, name='relu')
-            h1 = tf.nn.relu(h1, name='relu')  
+        opt = RMSprop(lr=0.00025)
+        model.compile(loss='mse', optimizer=opt)
 
-        with tf.name_scope('output'):
-            wo = tf.Variable(tf.random_normal([64, actionCnt], mean=0, stddev=0.01), name='wo')            
-            bo = tf.Variable(tf.zeros([actionCnt]), name='bo')
-            
-            self.output = tf.add(tf.matmul(h1, wo), bo, name='linear')
+        return model
 
-        with tf.name_scope('cost'):      
-            # MSE      
-            error = tf.reduce_sum(tf.pow(tf.subtract(self.output, self.target), 2))
-            self.loss = tf.reduce_mean(error)
+    def train(self, x, y, epoch=1, verbose=0):
+        self.model.fit(x, y, batch_size=64, nb_epoch=epoch, verbose=verbose)
 
-        with tf.name_scope('optimizer'):
-            self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.0025).minimize(self.loss)
+    def predict(self, s):
+        return self.model.predict(s)
 
-        self.sess = tf.Session()
-        self.sess.run(tf.global_variables_initializer())
-
-    def train(self, x, y, epoch=1, verbose=0):                
-        self.sess.run([ self.optimizer ],  feed_dict={ self.input: x, self.target: y })   
-
-    def predict(self, s):        
-        return self.sess.run([ self.output ], feed_dict={ self.input: s })[0]
-
-    def predictOne(self, s):        
+    def predictOne(self, s):
         return self.predict(s.reshape(1, self.stateCnt)).flatten()
 
 #-------------------- MEMORY --------------------------
@@ -109,7 +91,7 @@ class Agent:
         if random.random() < self.epsilon:
             return random.randint(0, self.actionCnt-1)
         else:
-            return np.argmax(self.brain.predictOne(s))
+            return numpy.argmax(self.brain.predictOne(s))
 
     def observe(self, sample):  # in (s, a, r, s_) format
         self.memory.add(sample)        
@@ -122,16 +104,16 @@ class Agent:
         batch = self.memory.sample(BATCH_SIZE)
         batchLen = len(batch)
 
-        no_state = np.zeros(self.stateCnt)
+        no_state = numpy.zeros(self.stateCnt)
 
-        states = np.array([ o[0] for o in batch ])
-        states_ = np.array([ (no_state if o[3] is None else o[3]) for o in batch ])        
+        states = numpy.array([ o[0] for o in batch ])
+        states_ = numpy.array([ (no_state if o[3] is None else o[3]) for o in batch ])
 
         p = self.brain.predict(states)
         p_ = self.brain.predict(states_)
 
-        x = np.zeros((batchLen, self.stateCnt))
-        y = np.zeros((batchLen, self.actionCnt))
+        x = numpy.zeros((batchLen, self.stateCnt))
+        y = numpy.zeros((batchLen, self.actionCnt))
         
         for i in range(batchLen):
             o = batch[i]
@@ -140,8 +122,8 @@ class Agent:
             t = p[i]
             if s_ is None:
                 t[a] = r
-            else:                
-                t[a] = r + GAMMA * np.amax(p_[i])
+            else:
+                t[a] = r + GAMMA * numpy.amax(p_[i])
 
             x[i] = s
             y[i] = t
@@ -191,6 +173,5 @@ agent = Agent(stateCnt, actionCnt)
 try:
     while True:
         env.run(agent)
-finally:    
-    saver = tf.train.Saver()
-    #saver.save(agent.brain.sess, './cartpole-basic')
+finally:
+    agent.brain.model.save("cartpole-basic.h5")
