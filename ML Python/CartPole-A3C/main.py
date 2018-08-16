@@ -18,9 +18,11 @@ from keras.layers import *
 from keras import backend as K
 
 #-- constants
-ENV = 'CartPole-v0'
+gym.envs.register(id='CartPoleExtraLong-v0', entry_point='gym.envs.classic_control:CartPoleEnv', max_episode_steps=100000, reward_threshold=95000.0)
+# ENV = 'CartPole-v0'
+ENV = 'CartPoleExtraLong-v0'
 
-RUN_TIME = 30
+RUN_TIME = 60
 THREADS = 8
 OPTIMIZERS = 2
 THREAD_DELAY = 0.001
@@ -221,7 +223,7 @@ class Environment(threading.Thread):
 		threading.Thread.__init__(self)
 
 		self.render = render
-		self.env = gym.make(ENV)
+		self.env = gym.make(ENV)		
 		self.agent = Agent(eps_start, eps_end, eps_steps)
 
 	def runEpisode(self):

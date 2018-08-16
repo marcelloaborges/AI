@@ -152,7 +152,14 @@ class Agent:
 class Environment:
     def __init__(self, problem):
         self.problem = problem
-        self.env = gym.make(problem)
+
+        gym.envs.register(
+            id='CartPoleExtraLong-v0',
+            entry_point='gym.envs.classic_control:CartPoleEnv',
+            max_episode_steps=1000,
+            reward_threshold=950.0
+        )
+        self.env = gym.make('CartPoleExtraLong-v0')
 
     def run(self, agent):
         s = self.env.reset()

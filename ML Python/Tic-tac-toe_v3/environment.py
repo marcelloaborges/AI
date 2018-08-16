@@ -7,8 +7,9 @@ class Environment:
     _ = ''
 
     LENGTH = 3
-    games = 1
+    games = 0
     winner = _    
+    done = False
 
     actions_matrix_array = {
         (0,0) : 1,
@@ -34,11 +35,11 @@ class Environment:
         9 : (2,2),
         }
 
-    board = np.array([
+    board = [
         [_, _, _],
         [_, _, _],
         [_, _, _]
-        ])    
+        ]  
 
     def __init__(self, length = 3):
         self.LENGTH = length        
@@ -121,16 +122,16 @@ class Environment:
 
         return True
 
-    def check_end_game(self):
+    def update_done(self):
+        self.done = False 
         if self.check_win(self.X):
-            return True
+            self.done = True            
         if self.check_win(self.O):
-            return True
+            self.done = True 
         if self.check_draw():
-            return True
-        return False
+            self.done = True         
 
-    def clear_board(self):
+    def reset(self):
         self.board = np.array([
         [self._, self._, self._],
         [self._, self._, self._],
@@ -138,6 +139,9 @@ class Environment:
         ])
         self.games += 1
         self.winner = self._
+        self.done = False
+
+        return self.state()
 
     def state(self):
         state = []
@@ -151,8 +155,8 @@ class Environment:
                     state.append(1)
         return state
 
-    def apply_action(self, player, actions):                  
-        sorted_actions = np.argsort(actions)        
+    def step(self, player, actions):
+        sorted_actions = np.argsort(actions)
         for action in reversed(sorted_actions[0][0]):            
             action_matrix = self.actions_array_matrix[action + 1]        
 
@@ -161,12 +165,14 @@ class Environment:
 
             self.board[action_matrix[0], action_matrix[1]] = player.action
 
-            if self.check_end_game():
-                if self.winner == player:
-                    return action, 1
+            self.update_done()
+            
+            if self.done:
+                if self.winner == player.action:
+                    return action, self.state(), 1, self.done
                 elif self.check_draw():
-                    return action, 0.5
+                    return action, self.state(), 0.5, self.done
                 else:
-                    return action, 0
+                    return action, self.state(), 0, self.done
             else:
-                return action, 0.5
+                return action, self.state(), 0.2, self.done

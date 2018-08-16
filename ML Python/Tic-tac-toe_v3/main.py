@@ -1,31 +1,76 @@
 from environment import Environment
 from player import Player
 
-environment = Environment()
+env = Environment()
 
 p1 = Player('X')
-p2 = Player('O')
+p2 = Player('O', True)
 
-games = 100
-current_player = p1
+games = 3000
+cp = p1
 
 for i in range(games):        
-    while not environment.check_end_game():    
-        state = environment.state()
-        actions = current_player.play(state)                
-        action, reward = environment.apply_action(current_player, actions)             
-        current_player.add_memory(state, action, reward, environment.state())
+    s = env.reset()
 
-        if current_player == p1:
-            current_player = p2            
+    while True:                
+        actions = cp.play(s)
+        a, s_, r, done = env.step(cp, actions)
+        cp.observe(s, a, r, s_, done)                               
+
+        if cp == p1:
+            cp = p2
         else:
-            current_player = p1    
+            cp = p1
+
+        if done:
+            cp.observe(s, a, r, s_, done)
+            break
+
+        s = s_         
     
-    environment.print_board()
-    environment.clear_board()
+    # env.print_board()
 
-    p1.learn()
+    p1.learn()    
     p2.learn()
+    
+# GAME TEST
 
-# p1.print_moves()
-# p2.print_moves()
+cp = p1
+s = env.reset()
+while True:                
+    actions = cp.play(s)        
+    a, s_, r, done = env.step(cp, actions)    
+    print(actions[0][0], a + 1)
+    env.print_board()        
+    cp.observe(s, a, r, s_, done)                               
+
+    if cp == p1:
+        cp = p2
+    else:
+        cp = p1
+
+    if done:
+        cp.observe(s, a, r, s_, done)
+        break
+
+    s = s_
+
+cp = p2
+s = env.reset()
+while True:                
+    actions = cp.play(s)        
+    a, s_, r, done = env.step(cp, actions)    
+    print(actions[0][0], a + 1)
+    env.print_board()        
+    cp.observe(s, a, r, s_, done)                               
+
+    if cp == p1:
+        cp = p2
+    else:
+        cp = p1
+
+    if done:
+        cp.observe(s, a, r, s_, done)
+        break
+
+    s = s_
