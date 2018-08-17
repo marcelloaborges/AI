@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import random
 
 class Player:
 
@@ -87,60 +88,78 @@ class Player:
 
     def learn(self):
         if self.rnd:
-            self.memory.reset()
             return
 
-        episodes = self.memory.read()        
+        games = self.memory.read()        
 
         input = []
         target = []
 
-        # THE LAST EPISODE IS CORRECTED WITH HIS S_ VALUE (USUAL Q-LEARNING)
-        # THE EPISODE-1 AND ON USE THE NEW VALUE FROM EPISODE-1 AS TARGET FOR THE Q-LEARNING CALC
-        last_episode = episodes[-1]
+        for game in games:
+            events = game[1]
 
-        output_s = self.play(last_episode.s)
-        output_s_ = self.play(last_episode.s_)
-        action_output_s_ = np.argmax(output_s_)
-        cumulative_r = self.gamma * output_s_[0][0][action_output_s_] + last_episode.r
-        output_s[0][0][last_episode.a] = cumulative_r
+            # THE LAST ACTION IS CORRECTED WITH HIS S_ VALUE (USUAL Q-LEARNING)
+            # THE ACTION-1 AND ON USE THE NEW VALUE FROM LAST ACTION * GAMMA AS TARGET 
+            last_event = events[-1]
 
-        input.append(last_episode.s)        
-        target.append(output_s[0][0])
+            output_s = self.play(last_event.s)
+            output_s_ = self.play(last_event.s_)
+            event_output_s_ = np.argmax(output_s_)
+            cumulative_r = self.gamma * output_s_[0][0][event_output_s_] + last_event.r
+            output_s[0][0][last_event.a] = cumulative_r
 
-        for episode in reversed(episodes[:-1]):            
-            cumulative_r = cumulative_r * self.gamma * episode.r            
-
-            output_s = self.play(episode.s)
-            output_s[0][0][episode.a] = cumulative_r
-
-            input.append(episode.s)
+            input.append(last_event.s)        
             target.append(output_s[0][0])
+
+            for event in reversed(events[:-1]):            
+                cumulative_r = cumulative_r * self.gamma  
+
+                output_s = self.play(event.s)
+                output_s[0][0][event.a] = cumulative_r
+
+                input.append(event.s)
+                target.append(output_s[0][0])
                 
         self.sess.run([ self.optimizer ],  feed_dict={ self.input: np.asarray(input), self.target: np.asarray(target) })
-           
-        self.memory.reset()
 
-    def observe(self, s, a, r, s_, done):
-        self.memory.add(s, a, r, s_, done)
+    def observe(self, game, s, a, r, s_, done):
+        self.memory.add(game, s, a, r, s_, done)
     
 class Memory:            
-    def __init__(self):
-        self.episodes = []
+    def __init__(self, capacity = 3000):
+        self.games = {}
+        self.capacity = capacity
 
-    def add(self, s, a, r, s_, done):
-        self.episodes.append(Episode(s, a, r, s_, done))                
+    def add(self, game, s, a, r, s_, done):             
+        if len(self.games) == self.capacity:
+            for key in self.games:
+                del self.games[key]                
+                break
 
-    def read(self):        
-        return self.episodes
+        event = Event(s, a, r, s_, done)
 
-    def reset(self):
-        self.episodes = []
+        if game not in self.games:
+            self.games[game] = []
 
-class Episode:
+        self.games[game].append(event)
+
+    def read(self, n = 100):      
+        qtd = len(self.games) if n > len(self.games) else n        
+        sample = random.sample(self.games.items(), qtd)
+
+        return sample
+
+class Event:
     def __init__(self, s, a, r, s_, done):
         self.s = s
         self.a = a
         self.r = r
         self.s_ = s_
         self.done = done
+
+class Game:
+    def __init__(self):
+        self.events = []
+
+    def add(self, event):
+        self.events.append(event)    

@@ -4,9 +4,9 @@ from player import Player
 env = Environment()
 
 p1 = Player('X')
-p2 = Player('O', True)
+p2 = Player('O')
 
-games = 3000
+games = 1000
 cp = p1
 
 for i in range(games):        
@@ -15,7 +15,7 @@ for i in range(games):
     while True:                
         actions = cp.play(s)
         a, s_, r, done = env.step(cp, actions)
-        cp.observe(s, a, r, s_, done)                               
+        cp.observe(i, s, a, r, s_, done)
 
         if cp == p1:
             cp = p2
@@ -23,7 +23,7 @@ for i in range(games):
             cp = p1
 
         if done:
-            cp.observe(s, a, r, s_, done)
+            cp.observe(i, s, a, r, s_, done)
             break
 
         s = s_         
@@ -41,16 +41,14 @@ while True:
     actions = cp.play(s)        
     a, s_, r, done = env.step(cp, actions)    
     print(actions[0][0], a + 1)
-    env.print_board()        
-    cp.observe(s, a, r, s_, done)                               
+    env.print_board()            
 
     if cp == p1:
         cp = p2
     else:
         cp = p1
 
-    if done:
-        cp.observe(s, a, r, s_, done)
+    if done:        
         break
 
     s = s_
@@ -61,16 +59,14 @@ while True:
     actions = cp.play(s)        
     a, s_, r, done = env.step(cp, actions)    
     print(actions[0][0], a + 1)
-    env.print_board()        
-    cp.observe(s, a, r, s_, done)                               
+    env.print_board()
 
     if cp == p1:
         cp = p2
     else:
         cp = p1
 
-    if done:
-        cp.observe(s, a, r, s_, done)
+    if done:        
         break
 
     s = s_

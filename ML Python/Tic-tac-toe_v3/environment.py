@@ -171,8 +171,8 @@ class Environment:
                 if self.winner == player.action:
                     return action, self.state(), 1, self.done
                 elif self.check_draw():
-                    return action, self.state(), 0.5, self.done
+                    return action, self.state(), 0.9, self.done
                 else:
                     return action, self.state(), 0, self.done
             else:
-                return action, self.state(), 0.2, self.done
+                return action, self.state(), 0.0, self.done
