@@ -171,8 +171,100 @@ class Environment:
                 if self.winner == player.action:
                     return action, self.state(), 1, self.done
                 elif self.check_draw():
-                    return action, self.state(), 0.9, self.done
+                    return action, self.state(), 1, self.done
                 else:
-                    return action, self.state(), 0, self.done
+                    return action, self.state(), -1, self.done
             else:
+                # FIRST MOVIE MIDDLE
+                if self.middle_move(action + 1):
+                    return action, self.state(), 0.5, self.done
+
+                # BLOCK WIN
+                if self.block_win(action + 1, player.action):
+                    return action, self.state(), 1, self.done
+
                 return action, self.state(), 0.0, self.done
+    
+    def middle_move(self, action):
+        movies_count = 0
+        for i in range(0, self.LENGTH):
+            for j in range(0, self.LENGTH):  
+                if self.board[i, j] != self._:
+                    movies_count += 1            
+        
+        if movies_count == 1:
+            if action == 5:
+                return True
+        
+        return False
+
+    def block_win(self, action, player):
+        #LINES                        
+        hits = 0
+        for i in range(0, self.LENGTH):            
+            hits = 0
+            for j in range(0, self.LENGTH):
+                if self.board[i, j] == self._:
+                    break
+
+                action_matrix = self.actions_array_matrix[action]
+                if self.board[i, j] == player and i == action_matrix[0] and j == action_matrix[1]:
+                    hits += 1                         
+                
+                if self.board[i, j] != player and i == action_matrix[0] and j != action_matrix[1]:
+                    hits += 1   
+
+            if hits == self.LENGTH:
+                return True
+
+        #COLUMNS        
+        for i in range(0, self.LENGTH):
+            hits = 0
+            for j in range(0, self.LENGTH):
+                if self.board[j, i] == self._:
+                    break
+
+                action_matrix = self.actions_array_matrix[action]
+                if self.board[j, i] == player and i == action_matrix[0] and j == action_matrix[1]:
+                    hits += 1                         
+                
+                if self.board[j, i] != player and i == action_matrix[0] and j != action_matrix[1]:
+                    hits += 1   
+
+            if hits == self.LENGTH:
+                return True
+
+        #MAIN DIAGONAL       
+        hits = 0 
+        for i in range(0, self.LENGTH):
+            if self.board[i, i] == self._:
+                break
+
+            action_matrix = self.actions_array_matrix[action]
+            if self.board[i, i] == player and i == action_matrix[0]:
+                hits += 1
+
+            if self.board[i, i] != player and i != action_matrix[0]:
+                hits += 1    
+
+        if hits == self.LENGTH:
+            return True
+
+        #SECOND DIAGONAL        
+        hits = 0
+        for i, j in zip(range(0, self.LENGTH), range(self.LENGTH - 1, -1, -1)):                   
+            if self.board[i, j] == self._:
+                break
+
+            action_matrix = self.actions_array_matrix[action]
+            if self.board[i, j] == player and i == action_matrix[0]:
+                hits += 1
+
+            if self.board[i, j] != player and i != action_matrix[0]:
+                hits += 1    
+
+        if hits == self.LENGTH:
+            return True
+
+        return False
+        

@@ -66,7 +66,7 @@ class Player:
             tf.summary.scalar('cost', self.loss)
 
             # CATEGORICAL CROSSENTROPY
-            #self.loss = tf.reduce_mean(tf.negative(tf.reduce_sum(tf.multiply(self.target, tf.log(self.output)))))
+            # self.loss = tf.reduce_mean(tf.negative(tf.reduce_sum(tf.multiply(self.target, tf.log(self.output)))))
 
         with tf.name_scope('optimizer'):
             self.optimizer = tf.train.AdamOptimizer(learning_rate=LR).minimize(self.loss)
@@ -112,7 +112,7 @@ class Player:
             target.append(output_s[0][0])
 
             for event in reversed(events[:-1]):            
-                cumulative_r = cumulative_r * self.gamma  
+                cumulative_r = cumulative_r * self.gamma  + event.r
 
                 output_s = self.play(event.s)
                 output_s[0][0][event.a] = cumulative_r
@@ -122,11 +122,13 @@ class Player:
                 
         self.sess.run([ self.optimizer ],  feed_dict={ self.input: np.asarray(input), self.target: np.asarray(target) })
 
+        # self.memory.reset()
+
     def observe(self, game, s, a, r, s_, done):
         self.memory.add(game, s, a, r, s_, done)
     
 class Memory:            
-    def __init__(self, capacity = 3000):
+    def __init__(self, capacity = 1000):
         self.games = {}
         self.capacity = capacity
 
@@ -143,11 +145,14 @@ class Memory:
 
         self.games[game].append(event)
 
-    def read(self, n = 100):      
+    def read(self, n = 10):      
         qtd = len(self.games) if n > len(self.games) else n        
         sample = random.sample(self.games.items(), qtd)
 
         return sample
+
+    def reset(self):
+        self.games = {}
 
 class Event:
     def __init__(self, s, a, r, s_, done):

@@ -97,23 +97,23 @@ else:
     print('DRAW => ERROR')
 
 
-#TESTS FOR END GAME
+#TESTS FOR BLOCK WIN
 print()
 print('------')
-print('CHECK END GAME')
+print('CHECK BLOCK WIN')
 print('------')
 
 #WIN NOT FULL
-env_end_game = Environment()
-env_end_game.board = np.array([
-        [X, O, _],
-        [X, _, O],
-        [X, _, _]
+env_rejected = Environment()
+env_rejected.board = np.array([
+        [O, _, O],
+        [_, O, _],
+        [X, O, _]
         ])    
 
-result = env_end_game.check_end_game()
+result = env_rejected.block_win(7, X)
 
-if result and env_end_game.winner == X:
-    print('END GAME => OK')
+if result:
+    print('BLOCK WIN => OK')
 else:
-    print('END GAME => ERROR')
+    print('BLOCK WIN  => ERROR')
