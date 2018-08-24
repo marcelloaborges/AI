@@ -25,45 +25,46 @@ class Player:
         
         with tf.name_scope('h1'):
             wh1 = tf.Variable(tf.random_normal([input_size, h1_size], mean=0, stddev=0.01), name='wh1')
-            tf.summary.histogram('wh1', wh1)
+            # tf.summary.histogram('wh1', wh1)
             b1 = tf.Variable(tf.zeros([h1_size]), name='bh1')
-            tf.summary.histogram('b1', b1)
+            # tf.summary.histogram('b1', b1)
 
             h1 = tf.add(tf.matmul(self.input, wh1), b1, name='linear_transformation')
             h1 = tf.nn.relu(h1, name='relu')
 
         with tf.name_scope('h2'):
             wh2 = tf.Variable(tf.random_normal([h1_size, h2_size], mean=0, stddev=0.01), name='wh2')
-            tf.summary.histogram('wh2', wh2)
+            # tf.summary.histogram('wh2', wh2)
             b2 = tf.Variable(tf.zeros([h2_size]), name='bh2')
-            tf.summary.histogram('b2', b2)
+            # tf.summary.histogram('b2', b2)
 
             h2 = tf.add(tf.matmul(h1, wh2), b2, name='linear_transformation')
             h2 = tf.nn.relu(h2, name='relu')
 
         with tf.name_scope('h3'):
             wh3 = tf.Variable(tf.random_normal([h2_size, h3_size], mean=0, stddev=0.01), name='wh3')
-            tf.summary.histogram('wh3', wh3)
+            # tf.summary.histogram('wh3', wh3)
             b3 = tf.Variable(tf.zeros([h3_size]), name='bh3')
-            tf.summary.histogram('b3', b3)
+            # tf.summary.histogram('b3', b3)
 
             h3 = tf.add(tf.matmul(h2, wh3), b3, name='linear_transformation')
             h3 = tf.nn.relu(h3, name='relu')
 
         with tf.name_scope('output'):
             wo = tf.Variable(tf.random_normal([h3_size, output_size], mean=0, stddev=0.01), name='wo')
-            tf.summary.histogram('wo', wo)
+            # tf.summary.histogram('wo', wo)
             bo = tf.Variable(tf.zeros([output_size]), name='bo')
-            tf.summary.histogram('bo', bo)
+            # tf.summary.histogram('bo', bo)
             
             self.output = tf.add(tf.matmul(h3, wo), bo, name='linear_transformation')
             self.output = tf.nn.sigmoid(self.output, name='sigmoid')
+            tf.summary.scalar('output', self.output)
 
         with tf.name_scope('cost'):      
             # MSE      
             error = tf.reduce_sum(tf.pow(tf.subtract(self.output, self.target), 2))
             self.loss = tf.reduce_mean(error)
-            tf.summary.scalar('cost', self.loss)
+            # tf.summary.scalar('cost', self.loss)
 
             # CATEGORICAL CROSSENTROPY
             # self.loss = tf.reduce_mean(tf.negative(tf.reduce_sum(tf.multiply(self.target, tf.log(self.output)))))
@@ -72,9 +73,11 @@ class Player:
             self.optimizer = tf.train.AdamOptimizer(learning_rate=LR).minimize(self.loss)
 
         #self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-        self.sess = tf.Session()
-        #self.writter = tf.summary.FileWriter('C:/tmp/logs/train', self.sess.graph)
+        self.sess = tf.Session()        
         self.sess.run(tf.global_variables_initializer())        
+
+        self.merged = tf.summary.merge_all()
+        self.writter = tf.summary.FileWriter('C:/tmp/logs/train', self.sess.graph)        
         
         # # para salvar o modelo treinado
         # saver = tf.train.Saver()
@@ -84,6 +87,7 @@ class Player:
 
     def play(self, s):                    
         actions = self.sess.run([ self.output ], feed_dict={ self.input: np.array([s]) })
+
         return actions
 
     def learn(self):
@@ -119,8 +123,9 @@ class Player:
 
                 input.append(event.s)
                 target.append(output_s[0][0])
-                
-        self.sess.run([ self.optimizer ],  feed_dict={ self.input: np.asarray(input), self.target: np.asarray(target) })
+                        
+        summary, _, _ = self.sess.run([ self.merged, self.input, self.optimizer ], feed_dict={ self.input: np.asarray(input).astype(float), self.target: np.asarray(target) })    
+        self.writter.add_summary(summary)            
 
         # self.memory.reset()
 

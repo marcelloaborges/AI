@@ -1,12 +1,13 @@
 from environment import Environment
 from player import Player
+import matplotlib.pyplot as plt
 
 env = Environment()
 
 p1 = Player('X')
 p2 = Player('O')
 
-games = 3000
+games = 100
 cp = p1
 
 for i in range(games):        
@@ -15,7 +16,7 @@ for i in range(games):
     while True:                
         actions = cp.play(s)
         a, s_, r, done = env.step(cp, actions)
-        cp.observe(i, s, a, r, s_, done)        
+        cp.observe(i, s, a, r, s_, done)                
 
         if cp == p1:
             cp = p2
