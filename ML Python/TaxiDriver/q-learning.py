@@ -18,7 +18,7 @@ env = gym.make('Taxi-v2')
 
 q_table = np.zeros([env.observation_space.n, env.action_space.n])
 
-for i in range(1, 100001):
+for i in range(1, 20000):
     state = env.reset()
 
     epochs, penalties, reward, = 0, 0, 0
