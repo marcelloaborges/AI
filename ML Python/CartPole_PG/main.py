@@ -28,7 +28,7 @@ class Policy(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = self.fc2(x)        
         return F.softmax(x, dim=1)
     
     def act(self, state):
@@ -41,16 +41,20 @@ class Policy(nn.Module):
 policy = Policy().to(device)
 optimizer = optim.Adam(policy.parameters(), lr=1e-2)
 
-def reinforce(n_episodes=1000, max_t=1000, gamma=1.0, print_every=100):
+def reinforce(n_episodes=1000, max_t=1000, gamma=0.99, print_every=100):
     scores_deque = deque(maxlen=100)
     scores = []
     for i_episode in range(1, n_episodes+1):
         saved_log_probs = []
         rewards = []
-        state = env.reset()
+
+        state = env.reset()        
         for t in range(max_t):
             action, log_prob = policy.act(state)
             saved_log_probs.append(log_prob)
+
+            env.render(mode='rgb_array')            
+
             state, reward, done, _ = env.step(action)
             rewards.append(reward)
             if done:
@@ -64,7 +68,8 @@ def reinforce(n_episodes=1000, max_t=1000, gamma=1.0, print_every=100):
         policy_loss = []
         for log_prob in saved_log_probs:
             policy_loss.append(-log_prob * R)
-        policy_loss = torch.cat(policy_loss).sum()
+        temp = torch.cat(policy_loss)
+        policy_loss = temp.sum()
         
         optimizer.zero_grad()
         policy_loss.backward()
@@ -80,21 +85,21 @@ def reinforce(n_episodes=1000, max_t=1000, gamma=1.0, print_every=100):
     
 scores = reinforce()
 
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.plot(np.arange(1, len(scores)+1), scores)
-plt.ylabel('Score')
-plt.xlabel('Episode #')
-plt.show()
+# fig = plt.figure()
+# ax = fig.add_subplot(111)
+# plt.plot(np.arange(1, len(scores)+1), scores)
+# plt.ylabel('Score')
+# plt.xlabel('Episode #')
+# plt.show()
 
 env = gym.make('CartPole-v0')
 
 state = env.reset()
-img = plt.imshow(env.render(mode='rgb_array'))
+# img = plt.imshow(env.render(mode='rgb_array'))
 for t in range(1000):
     action, _ = policy.act(state)
     env.render(mode='rgb_array')
-    plt.axis('off')
+    # plt.axis('off')    
     state, reward, done, _ = env.step(action)
     if done:
         break 
