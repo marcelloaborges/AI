@@ -118,7 +118,7 @@ def maddpg_train():
 
 
 # train the agent
-maddpg_train()
+# maddpg_train()
 
 # test the trained agents
 for episode in range(3):
