@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="Tennis_Windows_x86_64/Tennis.exe", no_graphics=False, worker_id=1)
+env = UnityEnvironment(file_name="../Environments/Tennis_Windows_x86_64/Tennis.exe", no_graphics=False, worker_id=1)
 
 brain_name = env.brain_names[0]
 brain = env.brains[brain_name]

@@ -52,7 +52,8 @@ class Critic:
         # Calculate the loss
         loss_policy = - log_probs * advantage
         loss_value = self.LOSS_V * advantage**2        
-        entropy = self.LOSS_ENTROPY * torch.sum( log_probs )
+        # entropy = self.LOSS_ENTROPY * torch.sum( log_probs )
+        entropy = self.LOSS_ENTROPY * entropy
 
         loss_total = torch.mean( loss_policy + loss_value + entropy )
 

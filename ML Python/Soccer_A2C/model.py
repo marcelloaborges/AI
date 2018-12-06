@@ -4,7 +4,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as distributions
+from torch.distributions import Categorical
 
 def hidden_init(layer):
     fan_in = layer.weight.data.size()[0]
@@ -29,12 +29,12 @@ class ActorCriticNN(nn.Module):
 
     def forward(self, state):        
         x = F.relu(self.fc1(state))
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
         x_prob = self.fc_prob(x)
         x_value = self.fc_value(x)
         
-        probs = F.softmax( x_prob, dim=0 )        
-        dist = distributions.Categorical(probs)
+        probs = F.softmax( x_prob, dim=1 )        
+        dist = Categorical(probs)
 
         action = dist.sample()
         log_prob = dist.log_prob(action)

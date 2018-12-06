@@ -47,7 +47,7 @@ class Actor:
 
     def act(self, state):
         """Returns actions for given state as per current policy."""
-        state = torch.from_numpy(state).float().to(self.DEVICE)
+        state = torch.from_numpy(state).float().unsqueeze(0).to(self.DEVICE)
         
         self.model.eval()
         with torch.no_grad():

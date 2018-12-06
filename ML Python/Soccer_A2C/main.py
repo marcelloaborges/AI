@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="Soccer_Windows_x86_64/Soccer.exe", no_graphics=False, worker_id=1)
+env = UnityEnvironment(file_name="../Environments/Soccer_Windows_x86_64/Soccer.exe", no_graphics=False, worker_id=1)
 
 # print the brain names
 print(env.brain_names)
@@ -57,9 +57,9 @@ print('There are {} striker agents. Each receives a state with length: {}'.forma
 
 
 # hyperparameters
-BATCH_SIZE = 16         # minibatch size
+BATCH_SIZE = 32         # minibatch size
 GAMMA = 0.99            # discount factor
-N_STEP = 10
+N_STEP = 8
 GAMMA_N = GAMMA ** N_STEP
 
 LOSS_V = .5			    # v loss coefficient
@@ -106,7 +106,7 @@ striker_critic = Critic(DEVICE, striker_model, striker_optimizer, GAMMA_N, LOSS_
 def a2c_train():
     scores = []
     scores_window = deque(maxlen=100)
-    n_episodes = 10000
+    n_episodes = 3000
 
     for episode in range(n_episodes):
         env_info = env.reset(train_mode=True)                        # reset the environment    
@@ -120,21 +120,17 @@ def a2c_train():
         while True:            
             # select actions and send to environment
             action_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
-            # action_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )                
-            action_goalie_1 = np.random.randint(goalie_action_size) 
+            action_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )                
+            # action_goalie_1 = np.random.randint(goalie_action_size) 
             actions_goalies = np.array( (action_goalie_0, action_goalie_1) )
 
-
             action_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
-            # action_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
-            action_striker_1 = np.random.randint(striker_action_size)
+            action_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
+            # action_striker_1 = np.random.randint(striker_action_size)
             actions_strikers = np.array( (action_striker_0, action_striker_1) )
 
             actions = dict( zip( [g_brain_name, s_brain_name], [actions_goalies, actions_strikers] ) )
 
-            # g_actions = np.random.randint(g_action_size, size=num_g_agents)
-            # s_actions = np.random.randint(s_action_size, size=num_s_agents)
-            # actions = dict(zip([g_brain_name, s_brain_name], [g_actions, s_actions]))
         
             env_info = env.step(actions)                             # send the action to the environment                            
             # get next states
@@ -148,28 +144,32 @@ def a2c_train():
             strikers_scores += strikers_rewards
             
             # check if episode finished
-            done = np.any(env_info[g_brain_name].local_done)
+            done = np.any(env_info[g_brain_name].local_done)            
+
+            # goalie_0_reward = goalies_rewards[goalie_0.KEY] * 0.6 + 2 * 0.4
+            # goalie_1_reward = goalies_rewards[goalie_1.KEY] * 0.6 + 2 * 0.4
+            goalie_0.step( goalies_states[goalie_0.KEY], action_goalie_0, goalies_rewards[goalie_0.KEY], goalies_next_states[goalie_0.KEY], done )
+            goalie_1.step( goalies_states[goalie_1.KEY], action_goalie_1, goalies_rewards[goalie_1.KEY], goalies_next_states[goalie_1.KEY], done )
+            goalie_critic.learn(goalies_buffer)
+            
+            # striker_0_reward = strikers_rewards[goalie_0.KEY] * 0.6 + 2 * 0.4
+            # striker_1_reward = strikers_rewards[goalie_1.KEY] * 0.6 + 2 * 0.4
+            striker_0.step( striker_states[striker_0.KEY], action_striker_0, strikers_rewards[goalie_0.KEY], strikers_next_states[striker_0.KEY], done )
+            striker_1.step( striker_states[striker_1.KEY], action_striker_1, strikers_rewards[goalie_1.KEY], strikers_next_states[striker_1.KEY], done )
+            striker_critic.learn(strikers_buffer)
 
             # roll over states to next time step
             goalies_states = goalies_next_states
             strikers_states = strikers_next_states
 
-            goalie_0.step( goalies_states[goalie_0.KEY], action_goalie_0, goalies_rewards[goalie_0.KEY], goalies_next_states[goalie_0.KEY], done )
-            # goalie_1.step( goalies_states[goalie_1.KEY], action_goalie_1, goalies_rewards[goalie_1.KEY], goalies_next_states[goalie_1.KEY], done )
-            goalie_critic.learn(goalies_buffer)
-            
-            striker_0.step( striker_states[striker_0.KEY], action_striker_0, strikers_rewards[striker_0.KEY], strikers_next_states[striker_0.KEY], done )
-            # striker_1.step( striker_states[striker_1.KEY], action_striker_1, strikers_rewards[striker_1.KEY], strikers_next_states[striker_1.KEY], done )
-            striker_critic.learn(strikers_buffer)
-
             # exit loop if episode finished
             if done:
-                break                        
-
-        print('Scores from episode {}: {} (goalies), {} (strikers)'.format(episode+1, goalies_scores, strikers_scores))
+                break                                
 
         goalie_model.checkpoint(CHECKPOINT_GOALIE)
         striker_model.checkpoint(CHECKPOINT_STRIKER)
+
+        print('Scores from episode {}: {} (goalies), {} (strikers)'.format(episode+1, goalies_scores, strikers_scores))
         
     # plt.plot(np.arange(1, len(scores)+1), scores)
     # plt.ylabel('Score')
