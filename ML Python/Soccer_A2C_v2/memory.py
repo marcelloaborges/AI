@@ -4,10 +4,9 @@ import random
 import torch
 
 class Memory:        
-    def __init__(self, batch_size):
-                        
-        self.memory = []
-        self.batch_size = batch_size        
+    def __init__(self):                        
+
+        self.memory = []        
         self.experience = namedtuple("Experience", field_names=["state", "action", "action_prob", "reward", "next_state"])
 
     def add(self, state, action, action_prob, reward, next_state):
@@ -15,8 +14,8 @@ class Memory:
         e = self.experience(state, action, action_prob, reward, next_state)
         self.memory.append(e)
 
-    def enough_experiences(self):
-        if len(self.memory) <= self.batch_size:
+    def enough_experiences(self, batch_size):
+        if len(self.memory) < batch_size:
             return False
 
         return True

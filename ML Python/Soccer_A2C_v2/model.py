@@ -16,6 +16,11 @@ def init_weights(layer):
         nn.init.xavier_uniform_(layer.weight)
         layer.bias.data.fill_(0.01)
 
+def layer_init(layer, w_scale=1.0):
+    nn.init.orthogonal_(layer.weight.data)
+    layer.weight.data.mul_(w_scale)
+    nn.init.constant_(layer.bias.data, 0)
+
 class Model(nn.Module):
     def __init__(self, state_size, action_size, fc1_units=256, fc2_units=128):        
         super(Model, self).__init__()        
@@ -24,36 +29,32 @@ class Model(nn.Module):
         self.fc_prob = nn.Linear(fc2_units, action_size)
         self.fc_value = nn.Linear(fc2_units, 1)
         
-        init_weights(self.fc1)
-        init_weights(self.fc2)
-        init_weights(self.fc_prob)
-        init_weights(self.fc_value)
+        # self.bn1 = nn.BatchNorm1d(num_features=state_size)
 
-    # def reset_parameters(self):
-    #     self.fc1.weight.data.uniform_(*hidden_init(self.fc1))
-    #     self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
-    #     self.fc_prob.weight.data.uniform_(-3e-3, 3e-3)
-    #     self.fc_value.weight.data.uniform_(-3e-3, 3e-3)
+        layer_init(self.fc1)
+        layer_init(self.fc2)
+        layer_init(self.fc_prob)
+        layer_init(self.fc_value)
 
-    def forward(self, state):        
+    def forward(self, state, action=None):   
+        # x = self.bn1(state)     
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        x_prob = self.fc_prob(x)
+        
+        x_prob = F.softmax( self.fc_prob(x), dim=1 )
         x_value = self.fc_value(x)
                 
         dist = Categorical(logits=x_prob)
 
-        action = dist.sample()
-
-        prob_selection = action.unsqueeze(1)
-        prob = dist.probs.gather(1, prob_selection)
-        print('\rProb: \t{}'.format(prob), end="")  
-
+        if action is None:
+            action = dist.sample().unsqueeze(1)
+                        
+        log_prob = dist.log_prob(action)
         entropy = dist.entropy()
 
         value = x_value
 
-        return action, prob, entropy, value
+        return action, log_prob, entropy, value
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

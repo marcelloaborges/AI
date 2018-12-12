@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from memory import Memory
@@ -8,7 +9,9 @@ class Actor:
         device,
         key,
         model, 
-        batch_size):
+        shared_memory,
+        n_step,
+        gamma):
 
         self.DEVICE = device
         self.KEY = key                
@@ -16,8 +19,15 @@ class Actor:
         # Neural model
         self.model = model        
 
-        # Shared memory
-        self.memory = Memory(batch_size)
+        # Memory
+        self.memory = Memory()
+        self.shared_memory = shared_memory
+
+        # HYPERPARAMETERS
+        self.N_STEP = n_step
+        self.GAMMA = gamma
+
+        self.t_step = 0
 
     def act(self, state):
         """Returns actions for given state as per current policy."""
@@ -25,25 +35,29 @@ class Actor:
                 
         self.model.eval()
         with torch.no_grad():
-            action, prob, _, _ = self.model(state)            
+            action, log_prob, _, _ = self.model(state)            
         self.model.train()
 
         action = action.cpu().detach().numpy().squeeze()
-        prob = prob.cpu().detach().numpy().squeeze()
+        log_prob = log_prob.cpu().detach().numpy().squeeze()
 
-        return action, prob
+        return action, log_prob
 
     def step(self, state, action, action_prob, reward, next_state):        
         # Save experience / reward
         self.memory.add(state, action, action_prob, reward, next_state)
 
-    def enough_experiences(self):
-        if self.memory.enough_experiences():
-            return False
+        self.t_step = (self.t_step + 1) % self.N_STEP  
+        if self.t_step == 0:
 
-        return True
+            states, actions, actions_probs, rewards, next_states = self.memory.experiences()
 
-    def experiences(self):
-        # Get the experiences and clear the memory
-        return self.memory.experiences()        
+            # Calc the discounted rewards
+            discounts = self.GAMMA ** np.arange( len( rewards ) )
+            rewards = np.asarray( rewards ) * discounts[:,np.newaxis]
+            future_rewards = rewards[::-1].cumsum(axis=0)[::-1]  
+
+            # copy the local experiences to the shared memory with the future reward adjustment
+            for i in range( len(states) ):
+                self.shared_memory.add(states[i], actions[i], actions_probs[i], future_rewards[i], next_states[i])    
 
