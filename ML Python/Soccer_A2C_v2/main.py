@@ -102,7 +102,7 @@ striker_1 = Actor(DEVICE, STRIKER_1_KEY, striker_model, striker_memory, N_STEP, 
 striker_critic = Critic(DEVICE, striker_model, striker_optimizer, striker_memory, BATCH_SIZE, EPSILON, BETA)
 
 def a2c_train():
-    n_episodes = 10000
+    n_episodes = 5000
 
     for episode in range(n_episodes):
         env_info = env.reset(train_mode=True)                        # reset the environment    

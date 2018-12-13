@@ -1,7 +1,6 @@
 import numpy as np
 from collections import namedtuple
 import random
-import torch
 
 class Memory:        
     def __init__(self):                        

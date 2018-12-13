@@ -50,13 +50,17 @@ class Critic:
 
         # actor       
         advantages = rewards - values
-        advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)
-        advantages_normalized = advantages
+        advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)        
          
         ratio = (new_probs - actions_probs).exp()
 
         ratio_clipped = torch.clamp( ratio, 1 - self.epsilon, 1 + self.epsilon )
         objective = torch.min( ratio * advantages_normalized, ratio_clipped * advantages_normalized )
+
+        
+        # discarting advantage clippings for tests
+        objective = advantages
+
         
         policy_loss = - torch.mean( objective )
         entropy = torch.mean( entropy )
