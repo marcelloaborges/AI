@@ -35,22 +35,22 @@ class Actor:
                 
         self.model.eval()
         with torch.no_grad():
-            action, log_prob, _, _ = self.model(state)            
+            action, log_prob, _ = self.model(state)            
         self.model.train()
 
-        action = action.cpu().detach().numpy().squeeze()
-        log_prob = log_prob.cpu().detach().numpy().squeeze()
+        action = action.cpu().detach().numpy().squeeze(1)
+        log_prob = log_prob.cpu().detach().numpy().squeeze(1)
 
         return action, log_prob
 
-    def step(self, state, action, action_prob, reward, next_state):        
+    def step(self, state, teammate_state, action, action_prob, reward):        
         # Save experience / reward
-        self.memory.add(state, action, action_prob, reward, next_state)
+        self.memory.add(state, teammate_state, action, action_prob, reward)
 
         self.t_step = (self.t_step + 1) % self.N_STEP  
         if self.t_step == 0:
 
-            states, actions, actions_probs, rewards, next_states = self.memory.experiences()
+            states, teammate_states, actions, actions_probs, rewards = self.memory.experiences()
 
             # Calc the discounted rewards
             discounts = self.GAMMA ** np.arange( len( rewards ) )
@@ -59,5 +59,5 @@ class Actor:
 
             # copy the local experiences to the shared memory with the future reward adjustment
             for i in range( len(states) ):
-                self.shared_memory.add(states[i], actions[i], actions_probs[i], future_rewards[i], next_states[i])    
+                self.shared_memory.add(states[i], teammate_states[i], actions[i], actions_probs[i], future_rewards[i])    
 

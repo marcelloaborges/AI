@@ -7,9 +7,9 @@ class Critic:
 
     def __init__(self, 
         device,        
-        model,    
-        optimizer,   
-        shared_memory, 
+        actor_model,    
+        critic_model,
+        optimizer,           
         batch_size,                    
         epsilon,
         beta):
@@ -17,51 +17,46 @@ class Critic:
         self.DEVICE = device        
 
         # Neural model
-        self.model = model
-        self.optimizer = optimizer
-
-        # Shared memory
-        self.shared_memory = shared_memory
+        self.actor_model = actor_model
+        self.critic_model = critic_model
+        self.optimizer = optimizer        
 
         # Hyperparameters
         self.BATCH_SIZE = batch_size        
         self.epsilon = epsilon
         self.beta = beta
         
-    def step(self):
-        if self.shared_memory.enough_experiences(self.BATCH_SIZE):
-            self._learn()
+    def step(self, memory):        
+        if memory.enough_experiences(self.BATCH_SIZE):            
+            experiences = memory.experiences()
+            self._learn(experiences)
             
-    def _learn(self):
+    def _learn(self, experiences):
         # Get the experiences from the actor and clear the memory        
         # The rewards have the discount already applied
-        states, actions, actions_probs, rewards, next_states = self.shared_memory.experiences()      
+        states, teammate_states, actions, actions_probs, rewards = experiences
 
         # To tensor
         states = torch.from_numpy(states).float().to(self.DEVICE)
+        teammate_states = torch.from_numpy(teammate_states).float().to(self.DEVICE)
         actions = torch.from_numpy(actions).long().to(self.DEVICE)
         actions_probs = torch.from_numpy(actions_probs).float().to(self.DEVICE)
-        rewards = torch.from_numpy(rewards).float().to(self.DEVICE)
-        next_states = torch.from_numpy(next_states).float().to(self.DEVICE)
+        rewards = torch.from_numpy(rewards).float().to(self.DEVICE)        
 
         
         # loss        
-        _, new_probs, entropy, values = self.model(states, actions)        
+        _, new_probs, entropy = self.actor_model(states, actions)        
+        values = self.critic_model(states, teammate_states)
 
         # actor       
         advantages = rewards - values
-        advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)        
+        advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)                
          
         ratio = (new_probs - actions_probs).exp()
 
         ratio_clipped = torch.clamp( ratio, 1 - self.epsilon, 1 + self.epsilon )
-        objective = torch.min( ratio * advantages_normalized, ratio_clipped * advantages_normalized )
+        objective = torch.min( ratio * advantages_normalized, ratio_clipped * advantages_normalized )        
 
-        
-        # discarting advantage clippings for tests
-        objective = advantages
-
-        
         policy_loss = - torch.mean( objective )
         entropy = torch.mean( entropy )
 
@@ -82,5 +77,5 @@ class Critic:
             # print("policy_loss_value: {:.6f}, value_loss_value: {:.6f}".format(policy_loss_value, value_loss_value))        
 
         
-        self.epsilon *= 0.995
+        self.epsilon *= 0.999
         self.beta *= 0.995
