@@ -24,6 +24,11 @@ is not. The goal of this puzzle is to build a statistical/machine learning model
 clients are able to honor their debt.
 
 
+## The goal:
+Predict the probability of <b>default</b>, which is identified by the <b>default</b> variable in
+the training dataset.
+
+
 ## The solution:
 As this is a classification problem of two classes, I decided to use a binary classification structure for the neural model with a sigmoid activation function in the output.<br />
 After deciding the model, the first step was to analyse the data and identify the columns that could be removed due to its nonnumeric or non categorical values.<br />
