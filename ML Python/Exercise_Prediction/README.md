@@ -10,6 +10,7 @@
 
 
 ### Requeriments:
+- python: 3.6
 - numpy: 1.11.0
 - torch: 0.4.1
 - pandas
