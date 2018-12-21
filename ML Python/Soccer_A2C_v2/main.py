@@ -4,13 +4,12 @@ import numpy as np
 from collections import deque
 
 import torch
-import torch.optim as optim
 
 from model import ActorModel, CriticModel
 from memory import Memory
 
-from actor import Actor
-from critic import Critic
+from agent import Agent
+from optimizer import Optimizer
 
 # import matplotlib.pyplot as plt
 
@@ -57,39 +56,30 @@ print('There are {} striker agents. Each receives a state with length: {}'.forma
 
 
 # hyperparameters
-BATCH_SIZE = 32         # minibatch size
+BATCH_SIZE = 128        # minibatch size
 GAMMA = 0.99            # discount factor
 N_STEP = 8
 EPSILON = 0.1
 BETA = 0.001
 
-LOSS_V = .5			    # v loss coefficient
-LOSS_ENTROPY = .01 	    # entropy coefficient
-
-LR = 5e-4               # learning rate of the actor 
+LR = 1e-5               # learning rate of the actor 
 WEIGHT_DECAY = 0        # L2 weight decay
 
 CHECKPOINT_GOALIE = './checkpoint_goalie.pth'
 CHECKPOINT_STRIKER = './checkpoint_striker.pth'
-CHECKPOINT_CRITIC = './checkpoint_critic.pth'
+CHECKPOINT_GOALIE_CRITIC = './checkpoint_goalie_critic.pth'
+CHECKPOINT_STRIKER_CRITIC = './checkpoint_striker_critic.pth'
 
 # Neural model
 goalie_model = ActorModel(goalie_state_size, goalie_action_size).to(DEVICE)
-
 striker_model = ActorModel(striker_state_size, striker_action_size).to(DEVICE)
-
-critic_model = CriticModel(goalie_state_size, striker_state_size).to(DEVICE)
-
-critic_goalie_optimizer = optim.Adam(list(goalie_model.parameters()) + list(critic_model.parameters()), lr=LR)
-critic_striker_optimizer = optim.Adam(list(striker_model.parameters()) + list(critic_model.parameters()), lr=LR)
+goalie_critic_model = CriticModel(goalie_state_size, striker_state_size).to(DEVICE)
+striker_critic_model = CriticModel(striker_state_size, goalie_state_size).to(DEVICE)
 
 goalie_model.load(CHECKPOINT_GOALIE)
 striker_model.load(CHECKPOINT_STRIKER)
-critic_model.load(CHECKPOINT_CRITIC)
-
-# Shared memory
-goalie_memory = Memory()
-striker_memory = Memory()
+goalie_critic_model.load(CHECKPOINT_GOALIE_CRITIC)
+striker_critic_model.load(CHECKPOINT_STRIKER_CRITIC)
 
 # Actors and Critics
 GOALIE_0_KEY = 0
@@ -98,17 +88,17 @@ STRIKER_0_KEY = 0
 GOALIE_1_KEY = 1
 STRIKER_1_KEY = 1
 
-goalie_0 = Actor(DEVICE, GOALIE_0_KEY, goalie_model, goalie_memory, N_STEP, GAMMA)
-striker_0 = Actor(DEVICE, STRIKER_0_KEY, striker_model, striker_memory, N_STEP, GAMMA)
+goalie_0 = Agent(DEVICE, GOALIE_0_KEY, goalie_model)
+striker_0 = Agent(DEVICE, STRIKER_0_KEY, striker_model)
 
-goalie_1 = Actor(DEVICE, GOALIE_1_KEY, goalie_model, goalie_memory, N_STEP, GAMMA)
-striker_1 = Actor(DEVICE, STRIKER_1_KEY, striker_model, striker_memory, N_STEP, GAMMA)
+goalie_1 = Agent(DEVICE, GOALIE_1_KEY, goalie_model)
+striker_1 = Agent(DEVICE, STRIKER_1_KEY, striker_model)
 
-critic_goalie = Critic(DEVICE, goalie_model, critic_model, critic_goalie_optimizer, BATCH_SIZE, EPSILON, BETA)
-critic_striker = Critic(DEVICE, striker_model, critic_model, critic_striker_optimizer, BATCH_SIZE, EPSILON, BETA)
+goalie_optimizer = Optimizer(DEVICE, goalie_model, goalie_critic_model, LR, N_STEP, GAMMA, BATCH_SIZE, EPSILON, BETA)
+striker_optimizer = Optimizer(DEVICE, striker_model, striker_critic_model, LR, N_STEP, GAMMA, BATCH_SIZE, EPSILON, BETA)
 
 def a2c_train():
-    n_episodes = 10000
+    n_episodes = 5000
     team_0_window_score = deque(maxlen=100)
     team_1_window_score = deque(maxlen=100)
 
@@ -119,22 +109,24 @@ def a2c_train():
         strikers_states = env_info[s_brain_name].vector_observations # get initial state (strikers)
 
         goalies_scores = np.zeros(n_goalie_agents)                   # initialize the score (goalies)
-        strikers_scores = np.zeros(n_striker_agents)                 # initialize the score (strikers)        
+        strikers_scores = np.zeros(n_striker_agents)                 # initialize the score (strikers) 
+        goalie_loss = 0
+        striker_loss = 0
         
         while True:            
             # select actions and send to environment
             action_goalie_0, action_log_prob_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
             action_striker_0, action_log_prob_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
 
-            action_goalie_1, action_log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )                
-            action_striker_1, action_log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
+            # action_goalie_1, action_log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )                
+            # action_striker_1, action_log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
 
             # random
             # action_goalie_0 = np.random.randint(goalie_action_size) 
             # action_striker_0 = np.random.randint(striker_action_size)
             
-            # action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
-            # action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
+            action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
+            action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
 
             actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
             actions_strikers = np.array( (action_striker_0, action_striker_1) )
@@ -156,14 +148,24 @@ def a2c_train():
             # check if episode finished
             done = np.any(env_info[g_brain_name].local_done)    
 
-            goalie_0.step( goalies_states[goalie_0.KEY], striker_states[striker_0.KEY], action_goalie_0, action_log_prob_goalie_0, goalies_rewards[goalie_0.KEY] )
-            striker_0.step( striker_states[striker_0.KEY], goalies_states[goalie_0.KEY], action_striker_0, action_log_prob_striker_0, strikers_rewards[goalie_0.KEY] )
+            # goalie_0_reward = goalies_rewards[goalie_0.KEY] * ( 1 - 0.4) + 2 * 0.4
+            # striker_0_reward = strikers_rewards[striker_0.KEY] * ( 1 - 0.4) + 2 * 0.4
+            # team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]            
 
-            goalie_1.step( goalies_states[goalie_1.KEY], striker_states[striker_1.KEY], action_goalie_1, action_log_prob_goalie_1, goalies_rewards[goalie_1.KEY] )            
-            striker_1.step( striker_states[striker_1.KEY], goalies_states[goalie_1.KEY], action_striker_1, action_log_prob_striker_1, strikers_rewards[goalie_1.KEY] )
-
-            critic_goalie.step(goalie_memory)
-            critic_striker.step(striker_memory)
+            goalie_loss = goalie_optimizer.step( 
+                goalies_states[goalie_0.KEY], 
+                striker_states[striker_0.KEY], 
+                action_goalie_0, 
+                action_log_prob_goalie_0, 
+                goalies_scores[goalie_0.KEY]
+                )
+            striker_loss = striker_optimizer.step(                 
+                striker_states[striker_0.KEY],
+                goalies_states[goalie_0.KEY], 
+                action_striker_0, 
+                action_log_prob_striker_0, 
+                strikers_scores[striker_0.KEY]  
+                )
 
             # exit loop if episode finished
             if done:
@@ -175,17 +177,23 @@ def a2c_train():
 
         goalie_model.checkpoint(CHECKPOINT_GOALIE)
         striker_model.checkpoint(CHECKPOINT_STRIKER)
-        critic_model.checkpoint(CHECKPOINT_CRITIC)
+        goalie_critic_model.checkpoint(CHECKPOINT_GOALIE_CRITIC)
+        striker_critic_model.checkpoint(CHECKPOINT_STRIKER_CRITIC)
 
         team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
-        team_0_window_score.append(team_0_score)
+        team_0_window_score.append(1 if team_0_score > 0 else 0)
 
         team_1_score = goalies_scores[goalie_1.KEY] + strikers_scores[striker_1.KEY]
-        team_1_window_score.append(team_1_score)
+        team_1_window_score.append(1 if team_1_score > 0 else 0)
         
         # print('\rScores from episode {}: {} (goalies), {} (strikers)'.format(episode+1, goalies_scores, strikers_scores), end="")
-        print('Episode {} \t \n Team Red: Score \t{:.0f} \tAverage \t{:.0f} \t \n Team Blue: Score \t{:.0f} \tAverage \t{:.0f} '
-            .format(episode + 1, team_0_score, np.sum(team_0_window_score), team_1_score, np.sum(team_1_window_score)))
+        print('Episode {} \t Goalie Loss: \t {:.10f} \t Striker Loss: \t {:.10f} \n Red Wins: \t{:.0f} \t Score: \t{:.5f} \n Blue Wins: \t{:.0f} \t Score: \t{:.5f} \n Empates: {:.0f}'
+            .format( episode + 1, goalie_loss, striker_loss,
+                np.count_nonzero(team_0_window_score), team_0_score, 
+                np.count_nonzero(team_1_window_score), team_1_score,
+                100 - np.count_nonzero(team_0_window_score) - np.count_nonzero(team_1_window_score)                
+            )
+        )
         
     # plt.plot(np.arange(1, len(scores)+1), scores)
     # plt.ylabel('Score')
@@ -244,13 +252,18 @@ for episode in range(50):                                               # play g
             break
         
     team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
-    team_0_window_score.append(team_0_score)
+    team_0_window_score.append(1 if team_0_score > 0 else 0)
 
     team_1_score = goalies_scores[goalie_1.KEY] + strikers_scores[striker_1.KEY]
-    team_1_window_score.append(team_1_score)
-
+    team_1_window_score.append(1 if team_1_score > 0 else 0)
+    
     # print('\rScores from episode {}: {} (goalies), {} (strikers)'.format(episode+1, goalies_scores, strikers_scores), end="")
-    print('Episode {} \t \n Team Red: Score \t{:.0f} \tAverage \t{:.0f} \t \n Team Blue: Score \t{:.0f} \tAverage \t{:.0f} '
-        .format(episode + 1, team_0_score, np.sum(team_0_window_score), team_1_score, np.sum(team_1_window_score)))
+    print('Episode {} \n Red Wins: \t{:.0f} \t Score: \t{:.5f} \n Blue Wins: \t{:.0f} \t Score: \t{:.5f} \n Empates: {:.0f}'
+        .format( episode + 1,  
+            np.count_nonzero(team_0_window_score), team_0_score, 
+            np.count_nonzero(team_1_window_score), team_1_score,
+            100 - np.count_nonzero(team_0_window_score) - np.count_nonzero(team_1_window_score)                
+        )
+    )
 
 env.close()
