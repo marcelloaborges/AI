@@ -4,14 +4,6 @@ from pre_processing_data import Cleaner
 from train import Trainer
 from test import Tester
 
-# Learning
-# loading the dataset
-csv_data_file = 'train/puzzle_train_dataset.csv'
-
-# cleaning data and generating the training set
-cleaner = Cleaner()
-feed, target = cleaner.generate_feed_n_target(csv_data_file)
-
 # Hyperparameter configration
 FEED_SIZE = 14
 FC1_UNITS = 64
@@ -22,12 +14,28 @@ BATCH_SIZE = 512
 EPOCHS = 5
 CHECKPOINT = './checkpoint.pth'
 
+## COMENT THIS SECTION IF YOU WANT TO TRAIN THE MODEL AGAIN ##
+
+# Learning
+# loading the dataset
+csv_data_file = 'train/puzzle_train_dataset.csv'
+
+# cleaning data and generating the training set
+cleaner = Cleaner()
+feed, target = cleaner.generate_feed_n_target(csv_data_file)
+
 trainer = Trainer(FEED_SIZE, OUTPUT_SIZE, FC1_UNITS, FC2_UNITS, LR, CHECKPOINT)
 trainer.train(feed, target, BATCH_SIZE, EPOCHS)
+
+###############################################################
+
 
 # Testing
 # loading the test dataset
 csv_test_file = 'test/puzzle_test_dataset.csv'
+
+# cleaning data and generating the test set
+cleaner = Cleaner()
 ids, feed = cleaner.generate_feed(csv_test_file)
 
 tester = Tester(FEED_SIZE, OUTPUT_SIZE, FC1_UNITS, FC2_UNITS, CHECKPOINT)
