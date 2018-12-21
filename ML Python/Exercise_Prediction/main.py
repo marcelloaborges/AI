@@ -46,4 +46,4 @@ results = np.concatenate( (ids.reshape(-1, 1), predictions), axis = 1)
 
 print('Results')
 print(results)
-np.savetxt('predictions.csv', results, delimiter=',', fmt='%s', header='ids,default')
+np.savetxt('predictions.csv', results, delimiter=',', fmt='%s', header='ids,predictions')
