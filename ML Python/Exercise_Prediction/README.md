@@ -30,7 +30,7 @@ the training dataset.
 
 
 ## The solution:
-As this is a classification problem of two classes, I decided to use a binary classification structure for the neural model with a sigmoid activation function in the output.<br />
+As this is a classification problem with one answer, yes or no, I decided to use a binary classification structure for the neural model with a sigmoid activation function in the output.<br />
 After deciding the model, the first step was to analyse the data and identify the columns that could be removed due to its nonnumeric or non categorical values.<br />
 So, I moved to the cleaning data phase. For the missing data, categorical columns filled with default values and for the numerical columns I used median and the default data normalization. <br />
 With this scenery, I had got the <b>84%</b> accuracy into a confusion matrix evaluation with the neural model structure described below.<br />
