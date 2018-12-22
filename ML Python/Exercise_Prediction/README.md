@@ -39,9 +39,8 @@ The last improvement was removing the outliers and here there is a curious fact 
 
 
 ## Results:
-- Loss: ~40%
-- Accuracy: ~84%
-<i>Obs.: The accuracy is being calculated using the <b>default</b> column as a reference with a <b>round</b> on the result to convert it to a binary value and compare with the default column</i>
+- Loss: ~40% (binary cross-entropy)
+- Accuracy: ~84% (round of the sigmoid output compared to the <b>default</b> column)
 
 
 ### The hyperparameters:
@@ -53,7 +52,7 @@ The last improvement was removing the outliers and here there is a curious fact 
   - OUTPUT_SIZE = 1
   - LR = 1e-3
   - BATCH_SIZE = 512
-  - EPOCHS = 5
+  - EPOCHS = 10
 
 - The neural model configuration is into the <b>model.py</b> file.
 - The actual architecture is:    

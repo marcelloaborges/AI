@@ -14,6 +14,12 @@ class Model(nn.Module):
         self.dout = nn.Dropout(0.2)
         self.fc2 = nn.Linear(fc1_units, fc2_units)        
         self.fcOut = nn.Linear(fc2_units, output_size)
+
+
+        torch.nn.init.xavier_uniform(self.fc1.weight)
+        torch.nn.init.xavier_uniform(self.fc2.weight)
+        torch.nn.init.xavier_uniform(self.fcOut.weight)
+
                 
     def forward(self, x):        
         x = F.relu( self.fc1(x) )
