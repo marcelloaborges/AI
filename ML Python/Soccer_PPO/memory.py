@@ -7,11 +7,11 @@ class Memory:
 
         self.memory = []
         self.experience = namedtuple('Experience', 
-            field_names=['state', 'teammate_state', 'adversary_state', 'adversary_teammate_state', 'action', 'log_prob', 'reward', 'done'])
+            field_names=['state', 'teammate_state', 'adversary_state', 'adversary_teammate_state', 'action', 'log_prob', 'reward'])
 
-    def add(self, state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward, done):
+    def add(self, state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward):
         """Add a new experience to memory."""        
-        e = self.experience( state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward, done )
+        e = self.experience( state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward )
         self.memory.append(e)
 
     def experiences(self):
@@ -22,11 +22,12 @@ class Memory:
         actions = np.vstack([e.action for e in self.memory if e is not None])
         log_probs = np.vstack([e.log_prob for e in self.memory if e is not None])
         rewards = np.vstack([e.reward for e in self.memory if e is not None])
-        dones = np.vstack([e.done for e in self.memory if e is not None])
         
+        n_exp = len(self)
+
         self.clear()
 
-        return states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, dones
+        return states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp
     
     def clear(self):
         self.memory.clear()
