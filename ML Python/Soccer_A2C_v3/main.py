@@ -53,12 +53,12 @@ print('There are {} striker agents. Each receives a state with length: {}'.forma
 
 
 # hyperparameters
-N_STEP = 8
+N_STEP = 64
 GAMMA = 0.99
 GAE_TAU = 0.95
 ENTROPY_WEIGHT = 0.01
 GRADIENT_CLIP = 0.5
-LR = 1e-4
+LR = 5e-4
 
 CHECKPOINT_GOALIE = './checkpoint_goalie.pth'
 CHECKPOINT_STRIKER = './checkpoint_striker.pth'
@@ -70,10 +70,10 @@ striker_model = A2CModel(striker_state_size, striker_action_size).to(DEVICE)
 goalie_model.load(CHECKPOINT_GOALIE)
 striker_model.load(CHECKPOINT_STRIKER)
 
-# goalie_optimizer = optim.Adam( goalie_model.parameters(), lr=LR )
-# striker_optimizer = optim.Adam( striker_model.parameters(), lr=LR )
-goalie_optimizer = optim.RMSprop( goalie_model.parameters(), lr=LR, alpha=0.99, eps=1e-5 )
-striker_optimizer = optim.RMSprop( striker_model.parameters(), lr=LR, alpha=0.99, eps=1e-5 )
+goalie_optimizer = optim.Adam( goalie_model.parameters(), lr=LR )
+striker_optimizer = optim.Adam( striker_model.parameters(), lr=LR )
+# goalie_optimizer = optim.RMSprop( goalie_model.parameters(), lr=LR, alpha=0.99, eps=1e-5 )
+# striker_optimizer = optim.RMSprop( striker_model.parameters(), lr=LR, alpha=0.99, eps=1e-5 )
 
 # Actors and Critics
 GOALIE_0_KEY = 0
@@ -84,6 +84,9 @@ STRIKER_1_KEY = 1
 
 goalie_0 = A2CAgent( DEVICE, GOALIE_0_KEY, goalie_model, goalie_optimizer, N_STEP, GAMMA, GAE_TAU, ENTROPY_WEIGHT, GRADIENT_CLIP )
 striker_0 = A2CAgent( DEVICE, STRIKER_0_KEY, striker_model, striker_optimizer, N_STEP, GAMMA, GAE_TAU, ENTROPY_WEIGHT, GRADIENT_CLIP )
+
+goalie_1 = A2CAgent( DEVICE, GOALIE_1_KEY, goalie_model, goalie_optimizer, N_STEP, GAMMA, GAE_TAU, ENTROPY_WEIGHT, GRADIENT_CLIP )
+striker_1 = A2CAgent( DEVICE, STRIKER_1_KEY, striker_model, striker_optimizer, N_STEP, GAMMA, GAE_TAU, ENTROPY_WEIGHT, GRADIENT_CLIP )
 
 def a2c_train():
     n_episodes = 5000
@@ -105,10 +108,13 @@ def a2c_train():
             # select actions and send to environment
             action_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
             action_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
+
+            action_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )
+            action_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
             
             # random            
-            action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
-            action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
+            # action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
+            # action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
 
 
             actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
@@ -136,9 +142,19 @@ def a2c_train():
                 goalies_rewards[goalie_0.KEY],
                 done
                 )
+            goalie_loss = goalie_1.step( 
+                goalies_states[goalie_1.KEY],
+                goalies_rewards[goalie_1.KEY],
+                done
+                )
             striker_loss = striker_0.step(                 
                 striker_states[striker_0.KEY],    
                 strikers_rewards[striker_0.KEY],
+                done
+                )
+            striker_loss = striker_1.step(                 
+                striker_states[striker_1.KEY],    
+                strikers_rewards[striker_1.KEY],
                 done
                 )
 

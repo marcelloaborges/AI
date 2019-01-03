@@ -13,7 +13,7 @@ from ddpg_agent import Agent
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="Reacher_Windows_x86_64_v2/Reacher.exe", no_graphics=False)
+env = UnityEnvironment(file_name="../Environments/Reacher_Windows_x86_64_v2/Reacher.exe", no_graphics=False)
 
 brain_name = env.brain_names[0]
 brain = env.brains[brain_name]

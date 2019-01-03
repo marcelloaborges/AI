@@ -15,10 +15,10 @@ class ActorModel(nn.Module):
     def __init__(self, state_size, action_size, fc1_units=256, fc2_units=128):
         super(ActorModel, self).__init__() 
 
-        self.fc1 = layer_init( nn.Linear(state_size, fc1_units), 0.1 )
-        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units), 0.1 )
+        self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
+        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
 
-        self.fc_action = layer_init( nn.Linear(fc2_units, action_size), 1e-3 )        
+        self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )        
 
     def forward(self, state, action=None):
         x = F.relu( self.fc1(state) )
@@ -48,10 +48,10 @@ class CriticModel(nn.Module):
     def __init__(self, state_size, fc1_units=256, fc2_units=128):
         super(CriticModel, self).__init__() 
 
-        self.fc1 = layer_init( nn.Linear(state_size, fc1_units), 0.1 )
-        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units), 0.1 )
+        self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
+        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
         
-        self.fc_critic = layer_init( nn.Linear(fc2_units, 1), 1e-3 )
+        self.fc_critic = layer_init( nn.Linear(fc2_units, 1) )
 
     def forward(self, state):
         x = F.relu( self.fc1(state) )
