@@ -4,10 +4,10 @@ import numpy as np
 from collections import deque
 
 import torch
-import torch.optim as optim
 
-# from replay_memory import ReplayMemory
-from prioritized_replay_memory import PrioritizedReplayMemory
+
+from replay_memory import ReplayMemory
+# from prioritized_replay_memory import PrioritizedReplayMemory
 from noise import OUNoise
 
 from model import ActorModel, CriticModel
@@ -42,8 +42,9 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-BUFFER_SIZE = int(1e6)  # replay buffer size
+BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 128        # minibatch size
+N_STEP = 4
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
 LR_ACTOR = 1e-5         # learning rate of the actor 
@@ -51,24 +52,18 @@ LR_CRITIC = 3e-5        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
+CHECKPOINT_FOLDER = './'
 
 
-CHECKPOINT_ACTOR = './checkpoint_actor.pth'
-CHECKPOINT_CRITIC = './checkpoint_critic.pth'
-
-shared_memory = PrioritizedReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+# shared_memory = PrioritizedReplayMemory(BUFFER_SIZE, BATCH_SIZE)
 noise = OUNoise(action_size)
 
-actor_model = ActorModel(state_size, action_size).to(DEVICE)
-actor_target_model = ActorModel(state_size, action_size).to(DEVICE)
-critic_model = CriticModel(state_size, action_size).to(DEVICE)
-critic_target_model = CriticModel(state_size, action_size).to(DEVICE)
+agents = [] 
+for i in range(num_agents):
+    agents.append( Agent(DEVICE, i, state_size, action_size, LR_ACTOR, WEIGHT_DECAY, shared_memory, noise, CHECKPOINT_FOLDER) )
 
-actor_optim = optim.Adam(actor_model.parameters(), lr=LR_ACTOR, weight_decay=WEIGHT_DECAY)
-critic_optim = optim.Adam(critic_model.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
-
-agent = Agent(DEVICE, actor_model, shared_memory, noise)
-optimizer = Optimizer(DEVICE, actor_model, actor_target_model, actor_optim, critic_model, critic_target_model, critic_optim, shared_memory, GAMMA, TAU)
+optimizer = Optimizer(DEVICE, state_size, action_size, LR_CRITIC, WEIGHT_DECAY, shared_memory, N_STEP, GAMMA, TAU, CHECKPOINT_FOLDER)
 
 
 def maddpg_train():
@@ -80,8 +75,9 @@ def maddpg_train():
         env_info = env.reset(train_mode=False)[brain_name]     # reset the environment    
         states = env_info.vector_observations                 # get the current state (for each agent)
         
-        agent.reset()    
-        actor_loss = 0
+        for agent in agents:
+            agent.reset()    
+
         critic_loss = 0       
 
         score = np.zeros(num_agents)                          # initialize the score (for each agent)
@@ -90,22 +86,26 @@ def maddpg_train():
         while True:
             # actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
             # actions = np.clip(actions, -1, 1)                  # all actions between -1 and 1
-            actions = agent.act( states, ADD_NOISE )     
+            actions = []
+            for agent in agents:
+                actions.append( agent.act( states[agent.KEY], ADD_NOISE ) )
+            actions = np.stack( actions, axis=0 )
             
             env_info = env.step(actions)[brain_name]           # send all actions to tne environment
             next_states = env_info.vector_observations         # get next state (for each agent)
             rewards = env_info.rewards                         # get reward (for each agent)
             dones = env_info.local_done                        # see if episode finished
             
-            agent.step( 
-                    states,
-                    actions,
-                    rewards,
-                    next_states,
-                    dones 
-                    )
+            for agent in agents:
+                agent.step( 
+                        states[agent.KEY],
+                        actions[agent.KEY],
+                        rewards[agent.KEY],
+                        next_states[agent.KEY],
+                        dones[agent.KEY] 
+                        )
 
-            actor_loss, critic_loss = optimizer.step()
+                critic_loss = optimizer.step(agent)
 
             score += rewards                                   # update the score (for each agent)
 
@@ -116,14 +116,15 @@ def maddpg_train():
 
             steps += 1
 
-        # actor_model.checkpoint( CHECKPOINT_ACTOR )
-        # critic_model.checkpoint( CHECKPOINT_CRITIC )
+        for agent in agents:
+            agent.checkpoint()
+        optimizer.checkpoint()
 
         scores.append(np.max(score))
         scores_window.append(np.max(score))
 
         print('Episode: \t{} \tSteps: \t{} \tScore: \t{:.2f} \tMax Score: \t{:.2f} \tAverage Score: \t{:.2f}'.format(episode, steps, np.max(score), np.max(scores), np.mean(scores_window)))  
-        print('Actor loss: \t{:.8f} \tCritic loss: \t{:.8f}'.format(actor_loss, critic_loss))
+        print('Critic loss: \t{:.8f}'.format(critic_loss))
         if np.mean(scores_window) >= 2000:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
             break    
@@ -142,11 +143,15 @@ for episode in range(n_episodes):
     states = env_info.vector_observations                 # get the current state (for each agent)      
 
     score = np.zeros(num_agents)                          # initialize the score (for each agent)
+    steps = 0
 
     while True:
         # n_actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
         # n_actions = np.clip(n_actions, -1, 1)                  # all actions between -1 and 1
-        actions = agent.act( states, False )     
+        actions = []
+        for agent in agents:
+            actions.append( agent.act( states[agent.KEY] ) )
+        actions = np.stack( actions, axis=0 )
 
         env_info = env.step(actions)[brain_name]           # send all actions to tne environment
         next_states = env_info.vector_observations         # get next state (for each agent)
@@ -159,6 +164,8 @@ for episode in range(n_episodes):
 
         if np.any(dones):                                  # exit loop if episode finished
             break
+        
+        steps += 1
 
     scores.append(np.max(score))
     scores_window.append(np.max(score))

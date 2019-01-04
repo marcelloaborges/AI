@@ -22,10 +22,7 @@ class ReplayMemory:
         self.memory.append(e)
     
     def sample(self):
-        """Randomly sample a batch of experiences from memory."""
-        if len(self.memory) <= self.batch_size:
-            return None
-
+        """Randomly sample a batch of experiences from memory."""        
         experiences = random.sample(self.memory, k=self.batch_size)
 
         states = np.vstack([e.state for e in experiences if e is not None])
@@ -35,6 +32,9 @@ class ReplayMemory:
         dones = np.vstack([e.done for e in experiences if e is not None])
 
         return states, actions, rewards, next_states, dones
+
+    def enough_experiences(self):
+        return len(self) >= self.batch_size
 
     def __len__(self):
         """Return the current size of internal memory."""
