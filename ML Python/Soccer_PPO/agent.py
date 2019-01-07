@@ -3,9 +3,12 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+import torch.nn as nn
 
 from model import ActorModel, CriticModel
 from memory import Memory
+
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 class Agent:
 
@@ -21,6 +24,7 @@ class Agent:
         adversary_teammate_state_size,
         lr,
         n_step,        
+        batch_size,
         gamma,
         epsilon,
         entropy_weight,
@@ -32,13 +36,13 @@ class Agent:
         self.KEY = key
         self.TYPE = agent_type
 
-        self.CHECKPOINT_ACTOR_FILE = checkpoint_folder + 'checkpoint' + '_' + self.TYPE + '_' + str(self.KEY) + '.pth'
-        self.CHECKPOINT_CRITIC_FILE = checkpoint_folder + 'checkpoint_critic_' + '_' + self.TYPE + '_' + str(self.KEY) + '.pth'
+        self.CHECKPOINT_ACTOR_FILE = checkpoint_folder + 'checkpoint_' + self.TYPE + '_' + str(self.KEY) + '.pth'
+        self.CHECKPOINT_CRITIC_FILE = checkpoint_folder + 'checkpoint_critic_' + self.TYPE + '_' + str(self.KEY) + '.pth'
 
         # NEURAL MODEL
         self.actor_model = ActorModel( state_size, action_size ).to(self.DEVICE)
         self.critic_model = CriticModel( state_size + teammate_state_size + adversary_state_size + adversary_teammate_state_size ).to(self.DEVICE)
-        self.optimizer = optim.Adam( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr )
+        self.optimizer = optim.Adam( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr, weight_decay=0.995 )
         # self.optimizer = optim.RMSprop( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr, alpha=0.99, eps=1e-5 )
 
         self.actor_model.load(self.CHECKPOINT_ACTOR_FILE)
@@ -49,6 +53,7 @@ class Agent:
 
         # HYPERPARAMETERS
         self.N_STEP = n_step        
+        self.BATCH_SIZE = batch_size
         self.GAMMA = gamma
         self.EPSILON = epsilon
         self.ENTROPY_WEIGHT = entropy_weight
@@ -73,10 +78,11 @@ class Agent:
     def step(self, state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward):                
         self.memory.add( state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward )
 
-        self.t_step = (self.t_step + 1) % self.N_STEP  
-        if self.t_step != 0:
-            return self.loss
-            
+        # self.t_step = (self.t_step + 1) % self.N_STEP  
+        # if self.t_step != 0:
+        #     return self.loss
+
+    def optimize(self):            
         # LEARN
         states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp = self.memory.experiences()
 
@@ -103,30 +109,47 @@ class Agent:
         advantages_normalized = torch.tensor(advantages_normalized).float().to(self.DEVICE)
 
 
-        _, new_log_probs, entropies = self.actor_model(states, actions)
+        batches = BatchSampler( SubsetRandomSampler( range(0, n_exp) ), self.BATCH_SIZE, drop_last=False)
 
-        ratio = ( new_log_probs - log_probs ).exp()
-        clip = torch.clamp( ratio, 1 - self.EPSILON, 1 + self.EPSILON )
-        
-        policy_loss = torch.min( ratio * advantages, clip * advantages )
-        policy_loss = - torch.mean( policy_loss )
+        for batch_indices in batches:
+            batch_indices = torch.tensor(batch_indices).long().to(self.DEVICE)
 
-        entropy = torch.mean(entropies)
-        
-        values = self.critic_model( torch.cat( (states, teammate_states, adversary_states, adversary_teammate_states), dim=1 ) )
-        value_loss = F.mse_loss( rewards, values )
-
-
-        self.optimizer.zero_grad()
-
-        loss = policy_loss + (0.5 * value_loss) - (entropy * self.ENTROPY_WEIGHT)        
-        loss.backward()
-        # nn.utils.clip_grad_norm_( self.model.parameters(), self.GRADIENT_CLIP )
-
-        self.optimizer.step()
+            sampled_states = states[batch_indices]
+            sampled_teammate_states = teammate_states[batch_indices]
+            sampled_adversary_states = adversary_states[batch_indices]
+            sampled_adversary_teammate_states = adversary_teammate_states[batch_indices]
+            sampled_actions = actions[batch_indices]
+            sampled_log_probs = log_probs[batch_indices]
+            sampled_rewards = rewards[batch_indices]
+            sampled_advantages = advantages_normalized[batch_indices]            
 
 
-        self.loss = loss.cpu().detach().numpy()
+            _, new_log_probs, entropies = self.actor_model(sampled_states, sampled_actions)
+
+
+            ratio = ( new_log_probs - sampled_log_probs ).exp()
+            clip = torch.clamp( ratio, 1 - self.EPSILON, 1 + self.EPSILON )
+
+            policy_loss = torch.min( ratio * sampled_advantages, clip * sampled_advantages )
+            policy_loss = - torch.mean( policy_loss )
+
+            entropy = torch.mean(entropies)
+
+            values = self.critic_model( torch.cat( (sampled_states, sampled_teammate_states, sampled_adversary_states, sampled_adversary_teammate_states), dim=1 ) )
+            value_loss = F.mse_loss( sampled_rewards, values )
+
+
+            self.optimizer.zero_grad()
+
+            loss = policy_loss + (0.5 * value_loss) - (entropy * self.ENTROPY_WEIGHT)        
+            loss.backward()
+            # nn.utils.clip_grad_norm_( self.actor_model.parameters(), self.GRADIENT_CLIP )
+            # nn.utils.clip_grad_norm_( self.critic_model.parameters(), self.GRADIENT_CLIP )
+
+            self.optimizer.step()
+
+
+            self.loss = loss.cpu().detach().numpy()
 
         return self.loss
 
