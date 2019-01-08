@@ -14,7 +14,7 @@ class Memory:
         e = self.experience( state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward )
         self.memory.append(e)
 
-    def experiences(self):
+    def experiences(self, clear=True):
         states = np.vstack([e.state for e in self.memory if e is not None])
         teammate_states = np.vstack([e.teammate_state for e in self.memory if e is not None])
         adversary_states = np.vstack([e.adversary_state for e in self.memory if e is not None])
@@ -22,13 +22,17 @@ class Memory:
         actions = np.vstack([e.action for e in self.memory if e is not None])
         log_probs = np.vstack([e.log_prob for e in self.memory if e is not None])
         rewards = np.vstack([e.reward for e in self.memory if e is not None])
-        
+                
         n_exp = len(self)
 
-        self.clear()
+        if clear:
+            self.clear()
 
         return states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp
     
+    def delete(self, i):
+        del self.memory[i]
+
     def clear(self):
         self.memory.clear()
     

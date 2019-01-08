@@ -12,7 +12,7 @@ def layer_init(layer, w_scale=1.0):
 
 class ActorModel(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1_units=256, fc2_units=256):
+    def __init__(self, state_size, action_size, fc1_units=512, fc2_units=256):
         super(ActorModel, self).__init__() 
 
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
@@ -45,7 +45,7 @@ class ActorModel(nn.Module):
 
 class CriticModel(nn.Module):
 
-    def __init__(self, state_size, fc1_units=256, fc2_units=256):
+    def __init__(self, state_size, fc1_units=512, fc2_units=256):
         super(CriticModel, self).__init__() 
 
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )

@@ -48,18 +48,20 @@ class Agent:
         self.actor_model.load(self.CHECKPOINT_ACTOR_FILE)
         self.critic_model.load(self.CHECKPOINT_CRITIC_FILE)
 
-        # N_STEP MEMORY
+        # N_STEP MEMORY AND OPTIMIZER MEMORY
+        self.n_step_memory = Memory()
         self.memory = Memory()        
 
         # HYPERPARAMETERS
         self.N_STEP = n_step        
         self.BATCH_SIZE = batch_size
         self.GAMMA = gamma
+        self.GAMMA_N = gamma ** n_step
         self.EPSILON = epsilon
         self.ENTROPY_WEIGHT = entropy_weight
         self.GRADIENT_CLIP = gradient_clip        
 
-        self.t_step = 0
+
         self.loss = 0
 
     def act(self, state):
@@ -81,7 +83,18 @@ class Agent:
         # self.t_step = (self.t_step + 1) % self.N_STEP  
         # if self.t_step != 0:
         #     return self.loss
-
+        
+        # if len(self.n_step_memory) >= self.N_STEP:            
+        #     states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp = self.n_step_memory.experiences(clear=False)
+            
+        #     R = 0
+        #     for i in range(0, n_exp):
+        #         R = ( R + rewards[i] * self.GAMMA_N ) / self.GAMMA
+        #     R = R[0]
+                                    
+        #     self.memory.add(states[0], teammate_states[0], adversary_states[0], adversary_teammate_states[0], actions[0], log_probs[0], R)
+        #     self.n_step_memory.delete(0)
+        
     def optimize(self):            
         # LEARN
         states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp = self.memory.experiences()
