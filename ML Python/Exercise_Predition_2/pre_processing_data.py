@@ -51,6 +51,7 @@ class Cleaner:
         CALL_START = 13
         CALL_END = 14
         CAR_INSURANCE = 15
+        CALL_TIME = 15
 
         print('Dealing with missing data...')
 
@@ -72,6 +73,8 @@ class Cleaner:
         self._fill_na_with_value( data, 'PrevAttempts',     data['PrevAttempts'].mean() )
 
         # adding the CALL TIME to the data
+        data['CallStart'] = pd.to_timedelta( data['CallStart'] )
+        data['CallEnd'] = pd.to_timedelta( data['CallEnd'] )
         data['CallTime'] = data.iloc[ :, CALL_END ].values - data.iloc[ :, CALL_START ].values
 
         print('')
@@ -88,7 +91,7 @@ class Cleaner:
         outcome_data = self._generate_one_hot_vector_from_categorical_label(          data, OUTCOME )
 
         # scalar columns normalization
-        scalar_data = self._generate_scalar_features(data, [ AGE, BALANCE, LAST_CONTACT_DAY, N_Of_CONTATCS, PREV_ATTEMPTS ] )        
+        scalar_data = self._generate_scalar_features(data, [ AGE, BALANCE, LAST_CONTACT_DAY, N_Of_CONTATCS, PREV_ATTEMPTS, CALL_TIME ] )        
 
         # neural model feed and target
         feed = np.concatenate( (job_data, marital_data, education_data, default_data, carloan_data, communication_data, lastcontactmonth_data, outcome_data, scalar_data ), axis=1 )        

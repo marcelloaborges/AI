@@ -3,13 +3,13 @@ from train import Trainer
 
 
 # Hyperparameter configration
-FEED_SIZE = 43
+FEED_SIZE = 44
 FC1_UNITS = 128
 FC2_UNITS = 64
 OUTPUT_SIZE = 1
-LR = 1e-3
-BATCH_SIZE = 512
-EPOCHS = 10
+LR = 1e-2
+BATCH_SIZE = 128
+EPOCHS = 100
 CHECKPOINT = './checkpoint.pth'
 
 # Learning
