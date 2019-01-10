@@ -72,8 +72,8 @@ class Agent:
             action, log_prob, _ = self.actor_model(state)                    
         self.actor_model.train()
 
-        action = action.cpu().detach().numpy()
-        log_prob = log_prob.cpu().detach().numpy()
+        action = action.cpu().detach().numpy().item()
+        log_prob = log_prob.cpu().detach().numpy().item()
 
         return action, log_prob
 
@@ -99,25 +99,28 @@ class Agent:
         # LEARN
         states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp = self.memory.experiences()
 
-        
-        discount = self.GAMMA**np.arange(n_exp).reshape(-1, 1)
-        rewards = rewards * discount
-        rewards_future = rewards[::-1].cumsum(axis=1)[::-1]
+
+        discount = self.GAMMA**np.arange(n_exp)
+        rewards = rewards.squeeze(1) * discount
+        rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
 
 
         states = torch.from_numpy(states).float().to(self.DEVICE)
         teammate_states = torch.from_numpy(teammate_states).float().to(self.DEVICE)
         adversary_states = torch.from_numpy(adversary_states).float().to(self.DEVICE)
         adversary_teammate_states = torch.from_numpy(adversary_teammate_states).float().to(self.DEVICE)
-        actions = torch.from_numpy(actions).long().to(self.DEVICE)
-        log_probs = torch.from_numpy(log_probs).float().to(self.DEVICE)
+        actions = torch.from_numpy(actions).long().to(self.DEVICE).squeeze(1)
+        log_probs = torch.from_numpy(log_probs).float().to(self.DEVICE).squeeze(1)
         rewards = torch.from_numpy(rewards_future.copy()).float().to(self.DEVICE)
 
 
-        values = self.critic_model( torch.cat( (states, teammate_states, adversary_states, adversary_teammate_states), dim=1 ) )
-                        
 
-        advantages = (rewards - values).detach()
+        self.critic_model.eval()
+        with torch.no_grad():
+            values = self.critic_model( torch.cat( (states, teammate_states, adversary_states, adversary_teammate_states), dim=1 ) ).detach()
+        self.critic_model.train
+                        
+        advantages = (rewards - values.squeeze()).detach()
         advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)
         advantages_normalized = torch.tensor(advantages_normalized).float().to(self.DEVICE)
 
@@ -148,21 +151,23 @@ class Agent:
 
             entropy = torch.mean(entropies)
 
-            values = self.critic_model( torch.cat( (sampled_states, sampled_teammate_states, sampled_adversary_states, sampled_adversary_teammate_states), dim=1 ) )
-            value_loss = F.mse_loss( sampled_rewards, values )
+            values = self.critic_model( torch.cat( (sampled_states, sampled_teammate_states, sampled_adversary_states, sampled_adversary_teammate_states), dim=1 ) )            
+            value_loss = F.mse_loss( sampled_rewards, values.squeeze() )
+
+            loss = policy_loss + (0.5 * value_loss) - (entropy * self.ENTROPY_WEIGHT)  
 
 
-            self.optimizer.zero_grad()
-
-            loss = policy_loss + (0.5 * value_loss) - (entropy * self.ENTROPY_WEIGHT)        
+            self.optimizer.zero_grad()                  
             loss.backward()
             # nn.utils.clip_grad_norm_( self.actor_model.parameters(), self.GRADIENT_CLIP )
             # nn.utils.clip_grad_norm_( self.critic_model.parameters(), self.GRADIENT_CLIP )
-
             self.optimizer.step()
 
 
             self.loss = loss.cpu().detach().numpy()
+
+        self.EPSILON *= 1
+        self.ENTROPY_WEIGHT *= 0.995
 
         return self.loss
 

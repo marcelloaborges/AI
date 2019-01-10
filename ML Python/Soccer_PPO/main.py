@@ -53,11 +53,11 @@ print('There are {} striker agents. Each receives a state with length: {}'.forma
 # hyperparameters
 N_STEP = 8
 BATCH_SIZE = 32
-GAMMA = 0.99
+GAMMA = 0.995
 EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
 GRADIENT_CLIP = 0.5
-LR = 5e-5
+LR = 8e-5
 
 CHECKPOINT_FOLDER = './'
 
