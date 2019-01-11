@@ -196,7 +196,7 @@ def ppo_train():
             done = np.any(env_info[g_brain_name].local_done)
 
             # learn
-            goalie_0_reward = goalies_rewards[goalie_0.KEY] # * 0.6 + strikers_rewards[striker_0.KEY] * 0.4
+            goalie_0_reward = goalies_rewards[goalie_0.KEY] * 0.6 + strikers_rewards[striker_0.KEY] * 0.4
             goalie_0.step( 
                 goalies_states[goalie_0.KEY],                
                 striker_states[striker_0.KEY],    
@@ -208,7 +208,7 @@ def ppo_train():
                 )
             # goalie_1_reward = goalies_rewards[goalie_1.KEY] * 0.6 + strikers_rewards[striker_1.KEY] * 0.4     
 
-            striker_0_reward = strikers_rewards[striker_0.KEY] # * 0.6 + goalies_rewards[goalie_0.KEY] * 0.4
+            striker_0_reward = strikers_rewards[striker_0.KEY] * 0.6 + goalies_rewards[goalie_0.KEY] * 0.4
             striker_0.step(                 
                 striker_states[striker_0.KEY],    
                 goalies_states[goalie_0.KEY],
@@ -249,7 +249,7 @@ def ppo_train():
         print('\tBlue Wins: \t{} \tScore: \t{:.5f}'.format( np.count_nonzero(team_1_window_score), team_1_score ))
         print('\tDraws: \t{}'.format( np.count_nonzero(draws) ))
 
-        if np.count_nonzero(team_0_window_score) >= 80:
+        if np.count_nonzero(team_0_window_score) >= 100:
             break
         
     # plt.plot(np.arange(1, len(scores)+1), scores)
