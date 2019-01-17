@@ -12,7 +12,7 @@ from agent import Agent
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="../Environments/Soccer_Windows_x86_64/Soccer.exe", no_graphics=False, worker_id=1)
+env = UnityEnvironment(file_name="../Environments/Soccer_Windows_x86_64/Soccer.exe", no_graphics=True, worker_id=1)
 
 # print the brain names
 print(env.brain_names)
@@ -58,6 +58,8 @@ EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
 GRADIENT_CLIP = 0.5
 LR = 8e-5
+GOALIE_LR = 5e-5
+STRIKER_LR = 1e-4
 
 CHECKPOINT_FOLDER = './'
 
@@ -146,9 +148,13 @@ striker_1 = Agent(
     )
 
 def ppo_train():
-    n_episodes = 80000
+    n_episodes = 100000
     team_0_window_score = deque(maxlen=100)
+    team_0_window_score_wins = deque(maxlen=100)
+
     team_1_window_score = deque(maxlen=100)
+    team_1_window_score_wins = deque(maxlen=100)
+
     draws = deque(maxlen=100)
 
     for episode in range(n_episodes):
@@ -196,11 +202,11 @@ def ppo_train():
             done = np.any(env_info[g_brain_name].local_done)
 
             # learn
-            goalie_0_reward = goalies_rewards[goalie_0.KEY] * 0.6 + strikers_rewards[striker_0.KEY] * 0.4
+            goalie_0_reward = goalies_rewards[goalie_0.KEY] # * 0.6 + strikers_rewards[striker_0.KEY] * 0.4
             goalie_0.step( 
-                goalies_states[goalie_0.KEY],                
-                striker_states[striker_0.KEY],    
-                goalies_states[GOALIE_1_KEY],
+                goalies_states[goalie_0.KEY],
+                striker_states[striker_0.KEY],
+                goalies_states[GOALIE_1_KEY], 
                 striker_states[STRIKER_1_KEY],
                 action_goalie_0,
                 log_prob_goalie_0,
@@ -208,9 +214,9 @@ def ppo_train():
                 )
             # goalie_1_reward = goalies_rewards[goalie_1.KEY] * 0.6 + strikers_rewards[striker_1.KEY] * 0.4     
 
-            striker_0_reward = strikers_rewards[striker_0.KEY] * 0.6 + goalies_rewards[goalie_0.KEY] * 0.4
+            striker_0_reward = strikers_rewards[striker_0.KEY] # * 0.6 + goalies_rewards[goalie_0.KEY] * 0.4
             striker_0.step(                 
-                striker_states[striker_0.KEY],    
+                striker_states[striker_0.KEY],
                 goalies_states[goalie_0.KEY],
                 striker_states[STRIKER_1_KEY],
                 goalies_states[GOALIE_1_KEY],                
@@ -237,16 +243,18 @@ def ppo_train():
         striker_0.checkpoint()
 
         team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
-        team_0_window_score.append( 1 if team_0_score > 0 else 0)
+        team_0_window_score.append( team_0_score )
+        team_0_window_score_wins.append( 1 if team_0_score > 0 else 0)        
 
-        team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]
-        team_1_window_score.append( 1 if team_1_score > 0 else 0 )
+        team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]                
+        team_1_window_score.append( team_1_score )
+        team_1_window_score_wins.append( 1 if team_1_score > 0 else 0 )
 
         draws.append( team_0_score == team_1_score )
         
         print('Episode: {} \tSteps: \t{} \tGoalie Loss: \t {:.10f} \tStriker Loss: \t {:.10f}'.format( episode + 1, steps, goalie_loss, striker_loss ))
-        print('\tRed Wins: \t{} \tScore: \t{:.5f}'.format( np.count_nonzero(team_0_window_score), team_0_score ))
-        print('\tBlue Wins: \t{} \tScore: \t{:.5f}'.format( np.count_nonzero(team_1_window_score), team_1_score ))
+        print('\tRed Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_0_window_score_wins), team_0_score, np.sum(team_0_window_score) ))
+        print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_0_window_score) ))
         print('\tDraws: \t{}'.format( np.count_nonzero(draws) ))
 
         if np.count_nonzero(team_0_window_score) >= 100:
@@ -262,9 +270,13 @@ def ppo_train():
 ppo_train()
 
 # test the trained agents
-team_0_window_score = deque(maxlen=50)
-team_1_window_score = deque(maxlen=50)
-draws = deque(maxlen=50)
+team_0_window_score = deque(maxlen=100)
+team_0_window_score_wins = deque(maxlen=100)
+
+team_1_window_score = deque(maxlen=100)
+team_1_window_score_wins = deque(maxlen=100)
+
+draws = deque(maxlen=100)
 
 for episode in range(50):                                               # play game for n episodes
     env_info = env.reset(train_mode=False)                              # reset the environment    
@@ -320,16 +332,18 @@ for episode in range(50):                                               # play g
             steps += 1
         
     team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
-    team_0_window_score.append( 1 if team_0_score > 0 else 0)
+    team_0_window_score.append( team_0_score )
+    team_0_window_score_wins.append( 1 if team_0_score > 0 else 0)        
 
-    team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]
-    team_1_window_score.append( 1 if team_1_score > 0 else 0 )
+    team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]                
+    team_1_window_score.append( team_1_score )
+    team_1_window_score_wins.append( 1 if team_1_score > 0 else 0 )
 
     draws.append( team_0_score == team_1_score )
     
     print('Episode {}'.format( episode + 1 ))
-    print('\tRed Wins: \t{} \tScore: \t{:.5f}'.format( np.count_nonzero(team_0_window_score), team_0_score ))
-    print('\tBlue Wins: \t{} \tScore: \t{:.5f}'.format( np.count_nonzero(team_1_window_score), team_1_score ))
+    print('\tRed Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_0_window_score_wins), team_0_score, np.sum(team_0_window_score) ))
+    print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_0_window_score) ))
     print('\tDraws: \t{}'.format( np.count_nonzero( draws ) ))
 
 env.close()

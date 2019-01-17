@@ -18,7 +18,12 @@ class ActorModel(nn.Module):
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
 
-        self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )        
+        self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )  
+  
+        # torch.nn.init.xavier_uniform(self.fc1.weight)
+        # torch.nn.init.xavier_uniform(self.fc2.weight)
+        # torch.nn.init.xavier_uniform(self.fc_action.weight)
+
 
     def forward(self, state, action=None):
         x = F.relu( self.fc1(state) )
@@ -52,6 +57,10 @@ class CriticModel(nn.Module):
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
         
         self.fc_critic = layer_init( nn.Linear(fc2_units, 1) )
+
+        # torch.nn.init.xavier_uniform(self.fc1.weight)
+        # torch.nn.init.xavier_uniform(self.fc2.weight)
+        # torch.nn.init.xavier_uniform(self.fc_critic.weight)
 
     def forward(self, state):
         x = F.relu( self.fc1(state) )

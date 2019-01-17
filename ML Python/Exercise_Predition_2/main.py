@@ -14,7 +14,7 @@ CHECKPOINT = './checkpoint.pth'
 
 # Learning
 # loading the dataset
-csv_data_file = 'dados_desafio.csv'
+csv_data_file = 'base.csv'
 
 cleaner = Cleaner()
 feed, target = cleaner.generate_feed_n_target(csv_data_file)
