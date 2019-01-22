@@ -17,11 +17,9 @@ class Agent:
         device,
         key,
         agent_type,
-        state_size,
+        actor_state_size,
         action_size,
-        teammate_state_size,
-        adversary_state_size, 
-        adversary_teammate_state_size,
+        critic_state_size,
         lr,
         n_step,        
         batch_size,
@@ -40,8 +38,8 @@ class Agent:
         self.CHECKPOINT_CRITIC_FILE = checkpoint_folder + 'checkpoint_critic_' + self.TYPE + '_' + str(self.KEY) + '.pth'
 
         # NEURAL MODEL
-        self.actor_model = ActorModel( state_size, action_size ).to(self.DEVICE)
-        self.critic_model = CriticModel( state_size + teammate_state_size + adversary_state_size + adversary_teammate_state_size ).to(self.DEVICE)
+        self.actor_model = ActorModel( actor_state_size, action_size ).to(self.DEVICE)
+        self.critic_model = CriticModel( critic_state_size ).to(self.DEVICE)
         self.optimizer = optim.Adam( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr )
         # self.optimizer = optim.RMSprop( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr, alpha=0.99, eps=1e-5 )
 
@@ -76,12 +74,12 @@ class Agent:
 
         return action, log_prob
 
-    def step(self, state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward):                
-        self.memory.add( state, teammate_state, adversary_state, adversary_teammate_state, action, log_prob, reward )
+    def step(self, actor_state, critic_state, action, log_prob, reward):                
+        self.memory.add( actor_state, critic_state, action, log_prob, reward )
         
     def optimize(self):            
         # LEARN
-        states, teammate_states, adversary_states, adversary_teammate_states, actions, log_probs, rewards, n_exp = self.memory.experiences()
+        actor_states, critic_states, actions, log_probs, rewards, n_exp = self.memory.experiences()
 
 
         discount = self.GAMMA**np.arange(n_exp)
@@ -89,10 +87,8 @@ class Agent:
         rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
 
 
-        states = torch.from_numpy(states).float().to(self.DEVICE)
-        teammate_states = torch.from_numpy(teammate_states).float().to(self.DEVICE)
-        adversary_states = torch.from_numpy(adversary_states).float().to(self.DEVICE)
-        adversary_teammate_states = torch.from_numpy(adversary_teammate_states).float().to(self.DEVICE)
+        actor_states = torch.from_numpy(actor_states).float().to(self.DEVICE)
+        critic_states = torch.from_numpy(critic_states).float().to(self.DEVICE)
         actions = torch.from_numpy(actions).long().to(self.DEVICE).squeeze(1)
         log_probs = torch.from_numpy(log_probs).float().to(self.DEVICE).squeeze(1)
         rewards = torch.from_numpy(rewards_future.copy()).float().to(self.DEVICE)
@@ -100,8 +96,8 @@ class Agent:
 
         self.critic_model.eval()
         with torch.no_grad():
-            values = self.critic_model( torch.cat( (states, teammate_states, adversary_states, adversary_teammate_states), dim=1 ) ).detach()
-        self.critic_model.train
+            values = self.critic_model( critic_states ).detach()
+        self.critic_model.train()
                         
         advantages = (rewards - values.squeeze()).detach()
         advantages_normalized = (advantages - advantages.mean()) / (advantages.std() + 1.0e-10)
@@ -113,17 +109,15 @@ class Agent:
         for batch_indices in batches:
             batch_indices = torch.tensor(batch_indices).long().to(self.DEVICE)
 
-            sampled_states = states[batch_indices]
-            sampled_teammate_states = teammate_states[batch_indices]
-            sampled_adversary_states = adversary_states[batch_indices]
-            sampled_adversary_teammate_states = adversary_teammate_states[batch_indices]
+            sampled_actor_states = actor_states[batch_indices]
+            sampled_critic_states = critic_states[batch_indices]
             sampled_actions = actions[batch_indices]
             sampled_log_probs = log_probs[batch_indices]
             sampled_rewards = rewards[batch_indices]
             sampled_advantages = advantages_normalized[batch_indices]            
 
 
-            _, new_log_probs, entropies = self.actor_model(sampled_states, sampled_actions)
+            _, new_log_probs, entropies = self.actor_model(sampled_actor_states, sampled_actions)
 
 
             ratio = ( new_log_probs - sampled_log_probs ).exp()
@@ -136,7 +130,7 @@ class Agent:
             entropy = torch.mean(entropies)
 
 
-            values = self.critic_model( torch.cat( (sampled_states, sampled_teammate_states, sampled_adversary_states, sampled_adversary_teammate_states), dim=1 ) )            
+            values = self.critic_model( sampled_critic_states )            
             value_loss = F.mse_loss( sampled_rewards, values.squeeze() )
 
 
@@ -150,7 +144,7 @@ class Agent:
             self.optimizer.step()
 
 
-            self.loss = loss.cpu().detach().numpy()
+            self.loss = loss.data
 
         self.EPSILON *= 1
         self.ENTROPY_WEIGHT *= 0.995

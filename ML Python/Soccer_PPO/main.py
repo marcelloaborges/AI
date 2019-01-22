@@ -12,7 +12,7 @@ from agent import Agent
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="../Environments/Soccer_Windows_x86_64/Soccer.exe", no_graphics=True, worker_id=1)
+env = UnityEnvironment(file_name="../Environments/Soccer_Windows_x86_64/Soccer.exe", no_graphics=False, seed=1)
 
 # print the brain names
 print(env.brain_names)
@@ -57,9 +57,10 @@ GAMMA = 0.995
 EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
 GRADIENT_CLIP = 0.5
-LR = 8e-5
+LR = 1e-4 # 8e-5|1e-4
 GOALIE_LR = 5e-5
-STRIKER_LR = 1e-4
+STRIKER_LR = 3e-4
+TEAM_SPIRIT = 0.25
 
 CHECKPOINT_FOLDER = './'
 
@@ -79,9 +80,7 @@ goalie_0 = Agent(
     GOALIE_TYPE, 
     goalie_state_size, 
     goalie_action_size,
-    striker_state_size, 
-    goalie_state_size,
-    striker_state_size, 
+    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
     LR,
     N_STEP,    
     BATCH_SIZE,
@@ -97,9 +96,7 @@ goalie_1 = Agent(
     GOALIE_TYPE, 
     goalie_state_size, 
     goalie_action_size,
-    striker_state_size, 
-    goalie_state_size,
-    striker_state_size, 
+    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
     LR,
     N_STEP,
     BATCH_SIZE,
@@ -116,9 +113,7 @@ striker_0 = Agent(
     STRIKER_TYPE, 
     striker_state_size, 
     striker_action_size,
-    goalie_state_size, 
-    striker_state_size,
-    goalie_state_size, 
+    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
     LR,
     N_STEP,
     BATCH_SIZE,
@@ -134,9 +129,7 @@ striker_1 = Agent(
     STRIKER_TYPE, 
     striker_state_size, 
     striker_action_size,
-    goalie_state_size, 
-    striker_state_size,
-    goalie_state_size, 
+    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
     LR,
     N_STEP,
     BATCH_SIZE,
@@ -177,8 +170,8 @@ def ppo_train():
             # action_striker_1, log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
             
             # random            
-            action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
-            action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
+            action_goalie_1 = np.asarray( [np.random.choice(goalie_action_size)] )
+            action_striker_1 = np.asarray( [np.random.choice(striker_action_size)] )
 
 
             actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
@@ -202,24 +195,32 @@ def ppo_train():
             done = np.any(env_info[g_brain_name].local_done)
 
             # learn
-            goalie_0_reward = goalies_rewards[goalie_0.KEY] # * 0.6 + strikers_rewards[striker_0.KEY] * 0.4
+            goalie_0_reward = goalies_rewards[goalie_0.KEY] * (1 - TEAM_SPIRIT) + strikers_rewards[striker_0.KEY] * TEAM_SPIRIT
             goalie_0.step( 
                 goalies_states[goalie_0.KEY],
-                striker_states[striker_0.KEY],
-                goalies_states[GOALIE_1_KEY], 
-                striker_states[STRIKER_1_KEY],
+                np.concatenate( 
+                    (
+                        goalies_states[goalie_0.KEY],
+                        strikers_states[striker_0.KEY],
+                        goalies_states[GOALIE_1_KEY],
+                        strikers_states[STRIKER_1_KEY],
+                    ), axis=0 ),
                 action_goalie_0,
                 log_prob_goalie_0,
                 goalie_0_reward 
                 )
             # goalie_1_reward = goalies_rewards[goalie_1.KEY] * 0.6 + strikers_rewards[striker_1.KEY] * 0.4     
 
-            striker_0_reward = strikers_rewards[striker_0.KEY] # * 0.6 + goalies_rewards[goalie_0.KEY] * 0.4
+            striker_0_reward = strikers_rewards[striker_0.KEY] * (1 - TEAM_SPIRIT) + goalies_rewards[goalie_0.KEY] * TEAM_SPIRIT
             striker_0.step(                 
-                striker_states[striker_0.KEY],
-                goalies_states[goalie_0.KEY],
-                striker_states[STRIKER_1_KEY],
-                goalies_states[GOALIE_1_KEY],                
+                strikers_states[striker_0.KEY],
+                np.concatenate( 
+                    (
+                        strikers_states[striker_0.KEY],
+                        goalies_states[goalie_0.KEY],                        
+                        strikers_states[STRIKER_1_KEY],                 
+                        goalies_states[GOALIE_1_KEY]                        
+                    ), axis=0 ),               
                 action_striker_0,
                 log_prob_striker_0,
                 striker_0_reward
@@ -237,9 +238,9 @@ def ppo_train():
             steps += 1
 
         goalie_loss = goalie_0.optimize()
-        striker_loss = striker_0.optimize()
+        striker_loss = striker_0.optimize()        
 
-        goalie_0.checkpoint()
+        goalie_0.checkpoint()        
         striker_0.checkpoint()
 
         team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
@@ -257,7 +258,7 @@ def ppo_train():
         print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_0_window_score) ))
         print('\tDraws: \t{}'.format( np.count_nonzero(draws) ))
 
-        if np.count_nonzero(team_0_window_score) >= 100:
+        if np.count_nonzero( team_0_window_score_wins ) >= 100:
             break
         
     # plt.plot(np.arange(1, len(scores)+1), scores)
@@ -290,46 +291,46 @@ for episode in range(50):                                               # play g
 
     while True:
         # select actions and send to environment
-            action_goalie_0, log_prob_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
-            action_striker_0, log_prob_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
+        action_goalie_0, log_prob_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
+        action_striker_0, log_prob_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
 
-            # action_goalie_1, log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )
-            # action_striker_1, log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
-            
-            # random            
-            action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
-            action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
-
-
-            actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
-            actions_strikers = np.array( (action_striker_0, action_striker_1) )
-
-            actions = dict( zip( [g_brain_name, s_brain_name], [actions_goalies, actions_strikers] ) )
-
+        # action_goalie_1, log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )
+        # action_striker_1, log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
         
-            env_info = env.step(actions)                                                
-            # get next states
-            goalies_next_states = env_info[g_brain_name].vector_observations         
-            strikers_next_states = env_info[s_brain_name].vector_observations
-            
-            # get reward and update scores
-            goalies_rewards = env_info[g_brain_name].rewards  
-            strikers_rewards = env_info[s_brain_name].rewards
-            goalies_scores += goalies_rewards
-            strikers_scores += strikers_rewards
-                        
-            # check if episode finished
-            done = np.any(env_info[g_brain_name].local_done)
+        # random            
+        action_goalie_1 = np.asarray( [np.random.randint(goalie_action_size)] )
+        action_striker_1 = np.asarray( [np.random.randint(striker_action_size)] )
 
-            # exit loop if episode finished
-            if done:
-                break  
 
-            # roll over states to next time step
-            goalies_states = goalies_next_states
-            strikers_states = strikers_next_states
+        actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
+        actions_strikers = np.array( (action_striker_0, action_striker_1) )
 
-            steps += 1
+        actions = dict( zip( [g_brain_name, s_brain_name], [actions_goalies, actions_strikers] ) )
+
+    
+        env_info = env.step(actions)                                                
+        # get next states
+        goalies_next_states = env_info[g_brain_name].vector_observations         
+        strikers_next_states = env_info[s_brain_name].vector_observations
+        
+        # get reward and update scores
+        goalies_rewards = env_info[g_brain_name].rewards  
+        strikers_rewards = env_info[s_brain_name].rewards
+        goalies_scores += goalies_rewards
+        strikers_scores += strikers_rewards
+                    
+        # check if episode finished
+        done = np.any(env_info[g_brain_name].local_done)
+
+        # exit loop if episode finished
+        if done:
+            break  
+
+        # roll over states to next time step
+        goalies_states = goalies_next_states
+        strikers_states = strikers_next_states
+
+        steps += 1
         
     team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
     team_0_window_score.append( team_0_score )
