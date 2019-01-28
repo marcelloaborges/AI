@@ -4,9 +4,13 @@ import numpy as np
 from collections import deque
 
 import torch
+import torch.optim as optim
+
+from model import ActorModel, CriticModel
+from memory import Memory
 
 from agent import Agent
-# import matplotlib.pyplot as plt
+from optimizer import Optimizer
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -57,91 +61,51 @@ GAMMA = 0.995
 EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
 GRADIENT_CLIP = 0.5
-LR = 1e-4 # 8e-5|1e-4
-GOALIE_LR = 5e-5
-STRIKER_LR = 3e-4
-TEAM_SPIRIT = 0.25
+LR = 1e-4
+GOALIE_LR = 8e-5
+STRIKER_LR = 1e-4
+TEAM_SPIRIT = 0.4
 
-CHECKPOINT_FOLDER = './'
+CHECKPOINT_GOALIE_ACTOR = './checkpoint_goalie_actor.pth'
+CHECKPOINT_GOALIE_CRITIC = './checkpoint_goalie_critic.pth'
+CHECKPOINT_STRIKER_ACTOR = './checkpoint_striker_actor.pth'
+CHECKPOINT_STRIKER_CRITIC = './checkpoint_striker_critic.pth'
 
 # Actors and Critics
-GOALIE_TYPE = 'GOALIE'
-STRIKER_TYPE = 'STRIKER'
-
 GOALIE_0_KEY = 0
 STRIKER_0_KEY = 0
-
 GOALIE_1_KEY = 1
 STRIKER_1_KEY = 1
 
-goalie_0 = Agent( 
-    DEVICE, 
-    GOALIE_0_KEY, 
-    GOALIE_TYPE, 
-    goalie_state_size, 
-    goalie_action_size,
-    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
-    LR,
-    N_STEP,    
-    BATCH_SIZE,
-    GAMMA,
-    EPSILON,
-    ENTROPY_WEIGHT,
-    GRADIENT_CLIP,
-    CHECKPOINT_FOLDER
-    )
-goalie_1 = Agent( 
-    DEVICE, 
-    GOALIE_1_KEY, 
-    GOALIE_TYPE, 
-    goalie_state_size, 
-    goalie_action_size,
-    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
-    LR,
-    N_STEP,
-    BATCH_SIZE,
-    GAMMA,
-    EPSILON,
-    ENTROPY_WEIGHT,
-    GRADIENT_CLIP,
-    CHECKPOINT_FOLDER   
-    )
+# NEURAL MODEL
+goalie_actor_model = ActorModel( goalie_state_size, goalie_action_size ).to(DEVICE)
+goalie_critic_model = CriticModel( goalie_state_size + striker_state_size + goalie_state_size + striker_state_size ).to(DEVICE)
+goalie_optim = optim.Adam( list( goalie_actor_model.parameters() ) + list( goalie_critic_model.parameters() ), lr=GOALIE_LR )
+# self.optim = optim.RMSprop( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr, alpha=0.99, eps=1e-5 )
 
-striker_0 = Agent( 
-    DEVICE, 
-    STRIKER_0_KEY, 
-    STRIKER_TYPE, 
-    striker_state_size, 
-    striker_action_size,
-    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
-    LR,
-    N_STEP,
-    BATCH_SIZE,
-    GAMMA,
-    EPSILON,
-    ENTROPY_WEIGHT,
-    GRADIENT_CLIP,
-    CHECKPOINT_FOLDER
-    )
-striker_1 = Agent( 
-    DEVICE, 
-    STRIKER_1_KEY, 
-    STRIKER_TYPE, 
-    striker_state_size, 
-    striker_action_size,
-    goalie_state_size + striker_state_size + goalie_state_size + striker_state_size, 
-    LR,
-    N_STEP,
-    BATCH_SIZE,
-    GAMMA,
-    EPSILON,
-    ENTROPY_WEIGHT,
-    GRADIENT_CLIP,
-    CHECKPOINT_FOLDER
-    )
+
+striker_actor_model = ActorModel( striker_state_size, striker_action_size ).to(DEVICE)
+striker_critic_model = CriticModel( striker_state_size + goalie_state_size + striker_state_size + goalie_state_size ).to(DEVICE)
+striker_optim = optim.Adam( list( striker_actor_model.parameters() ) + list( striker_critic_model.parameters() ), lr=STRIKER_LR )
+# self.optim = optim.RMSprop( list( self.actor_model.parameters() ) + list( self.critic_model.parameters() ), lr=lr, alpha=0.99, eps=1e-5 )
+
+goalie_actor_model.load( CHECKPOINT_GOALIE_ACTOR )
+goalie_critic_model.load( CHECKPOINT_GOALIE_CRITIC )
+striker_actor_model.load( CHECKPOINT_STRIKER_ACTOR )
+striker_critic_model.load( CHECKPOINT_STRIKER_CRITIC )
+
+
+# AGENTS
+goalie_0 = Agent( DEVICE, GOALIE_0_KEY, goalie_actor_model, N_STEP )
+goalie_optimizer = Optimizer( DEVICE, goalie_actor_model, goalie_critic_model, goalie_optim,  
+    N_STEP, BATCH_SIZE, GAMMA, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
+
+striker_0 = Agent( DEVICE, STRIKER_0_KEY, striker_actor_model, N_STEP )
+striker_optimizer = Optimizer( DEVICE, striker_actor_model, striker_critic_model, striker_optim,  
+    N_STEP, BATCH_SIZE, GAMMA, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
 
 def ppo_train():
-    n_episodes = 100000
+    n_episodes = 5000
     team_0_window_score = deque(maxlen=100)
     team_0_window_score_wins = deque(maxlen=100)
 
@@ -195,7 +159,7 @@ def ppo_train():
             done = np.any(env_info[g_brain_name].local_done)
 
             # learn
-            goalie_0_reward = goalies_rewards[goalie_0.KEY] * (1 - TEAM_SPIRIT) + strikers_rewards[striker_0.KEY] * TEAM_SPIRIT
+            goalie_0_reward = goalies_rewards[goalie_0.KEY] # * (1 - TEAM_SPIRIT) + strikers_rewards[striker_0.KEY] * TEAM_SPIRIT
             goalie_0.step( 
                 goalies_states[goalie_0.KEY],
                 np.concatenate( 
@@ -208,10 +172,10 @@ def ppo_train():
                 action_goalie_0,
                 log_prob_goalie_0,
                 goalie_0_reward 
-                )
-            # goalie_1_reward = goalies_rewards[goalie_1.KEY] * 0.6 + strikers_rewards[striker_1.KEY] * 0.4     
+            )
 
-            striker_0_reward = strikers_rewards[striker_0.KEY] * (1 - TEAM_SPIRIT) + goalies_rewards[goalie_0.KEY] * TEAM_SPIRIT
+
+            striker_0_reward = strikers_rewards[striker_0.KEY] # * (1 - TEAM_SPIRIT) + goalies_rewards[goalie_0.KEY] * TEAM_SPIRIT
             striker_0.step(                 
                 strikers_states[striker_0.KEY],
                 np.concatenate( 
@@ -224,8 +188,8 @@ def ppo_train():
                 action_striker_0,
                 log_prob_striker_0,
                 striker_0_reward
-                )
-            # striker_1_reward = strikers_rewards[striker_1.KEY] * 0.6 + goalies_rewards[goalie_1.KEY] * 0.4    
+            )
+
 
             # exit loop if episode finished
             if done:
@@ -237,17 +201,19 @@ def ppo_train():
 
             steps += 1
 
-        goalie_loss = goalie_0.optimize()
-        striker_loss = striker_0.optimize()        
+        goalie_loss = goalie_optimizer.learn(goalie_0.memory)
+        striker_loss = striker_optimizer.learn(striker_0.memory)        
 
-        goalie_0.checkpoint()        
-        striker_0.checkpoint()
+        goalie_actor_model.checkpoint( CHECKPOINT_GOALIE_ACTOR )   
+        goalie_critic_model.checkpoint( CHECKPOINT_GOALIE_CRITIC )    
+        striker_actor_model.checkpoint( CHECKPOINT_STRIKER_ACTOR )    
+        striker_critic_model.checkpoint( CHECKPOINT_STRIKER_CRITIC )
 
         team_0_score = goalies_scores[goalie_0.KEY] + strikers_scores[striker_0.KEY]
         team_0_window_score.append( team_0_score )
         team_0_window_score_wins.append( 1 if team_0_score > 0 else 0)        
 
-        team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]                
+        team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]
         team_1_window_score.append( team_1_score )
         team_1_window_score_wins.append( 1 if team_1_score > 0 else 0 )
 
@@ -255,17 +221,12 @@ def ppo_train():
         
         print('Episode: {} \tSteps: \t{} \tGoalie Loss: \t {:.10f} \tStriker Loss: \t {:.10f}'.format( episode + 1, steps, goalie_loss, striker_loss ))
         print('\tRed Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_0_window_score_wins), team_0_score, np.sum(team_0_window_score) ))
-        print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_0_window_score) ))
+        print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_1_window_score) ))
         print('\tDraws: \t{}'.format( np.count_nonzero(draws) ))
 
-        if np.count_nonzero( team_0_window_score_wins ) >= 100:
+        if np.count_nonzero( team_0_window_score_wins ) >= 95:
             break
-        
-    # plt.plot(np.arange(1, len(scores)+1), scores)
-    # plt.ylabel('Score')
-    # plt.xlabel('Episode #')
-    # plt.show()    
-
+    
 
 # train the agent
 ppo_train()
@@ -336,7 +297,7 @@ for episode in range(50):                                               # play g
     team_0_window_score.append( team_0_score )
     team_0_window_score_wins.append( 1 if team_0_score > 0 else 0)        
 
-    team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]                
+    team_1_score = goalies_scores[GOALIE_1_KEY] + strikers_scores[STRIKER_1_KEY]
     team_1_window_score.append( team_1_score )
     team_1_window_score_wins.append( 1 if team_1_score > 0 else 0 )
 
@@ -344,7 +305,7 @@ for episode in range(50):                                               # play g
     
     print('Episode {}'.format( episode + 1 ))
     print('\tRed Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_0_window_score_wins), team_0_score, np.sum(team_0_window_score) ))
-    print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_0_window_score) ))
+    print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_1_window_score) ))
     print('\tDraws: \t{}'.format( np.count_nonzero( draws ) ))
 
 env.close()
