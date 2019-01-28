@@ -17,7 +17,8 @@ class Trainer:
     def __init__(self, feed_size, output_size, fc1_units, fc2_units, lr, checkpoint='./checkpoint.pth'):
 
         self.model = Model(feed_size, output_size, fc1_units, fc2_units)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        # self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
 
         self.checkpoint = checkpoint
 
@@ -63,14 +64,15 @@ class Trainer:
     
     def train_with_nn(self, feed, target, batch_size=512, epochs=1):
 
+        # target = np.array( [ [0, 1] if t == 0 else [1, 0] for t in target ] )
         # subsets
         train_feed, test_feed, train_target, test_target = tts(feed, target, test_size=0.1, random_state=0)
 
-        print('Learning: Neural Model')
+        print('Learning: Neural Model')        
 
-        self.classifier.fit(train_feed, train_target)
+        # criterion = nn.BCELoss()
+        criterion = nn.CrossEntropyLoss()
 
-        criterion = nn.BCELoss()
         for epoch in range(epochs):
             batch = BatchSampler( SubsetRandomSampler( range(train_feed.shape[0]) ), batch_size, drop_last=False)
 
@@ -80,11 +82,12 @@ class Trainer:
                 batch_count += 1
 
                 feeds = train_feed[batch_indices]
-                targets = train_target[batch_indices]
+                targets = train_target[batch_indices].squeeze(1)
 
                 # to tensor
                 feeds = torch.tensor(feeds).float()
-                targets = torch.tensor(targets.astype(np.uint8)).float()
+                # targets = torch.tensor(targets.astype(np.uint8)).float()
+                targets = torch.tensor(targets).long()
                 
                 # forward
                 predictions = self.model(feeds)
@@ -104,7 +107,7 @@ class Trainer:
 
         self._test_with_nn(test_feed, test_target)
 
-        self.model.checkpoint(self.checkpoint)
+        # self.model.checkpoint(self.checkpoint)
 
     def _test_with_nn(self, feed, target, batch_size=512):
 
@@ -134,7 +137,7 @@ class Trainer:
 
         test_target = target.astype(np.uint8)
         test_predictions = np.concatenate( test_predictions )
-        test_predictions = np.asarray( [ np.round(x) for x in test_predictions ] )    
+        test_predictions = np.asarray( [ np.argmax(x) for x in test_predictions ] )    
 
         cm = confusion_matrix(test_target, test_predictions)
 

@@ -61,10 +61,9 @@ GAMMA = 0.995
 EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
 GRADIENT_CLIP = 0.5
-LR = 1e-4
 GOALIE_LR = 8e-5
 STRIKER_LR = 1e-4
-TEAM_SPIRIT = 0.4
+
 
 CHECKPOINT_GOALIE_ACTOR = './checkpoint_goalie_actor.pth'
 CHECKPOINT_GOALIE_CRITIC = './checkpoint_goalie_critic.pth'
@@ -97,10 +96,12 @@ striker_critic_model.load( CHECKPOINT_STRIKER_CRITIC )
 
 # AGENTS
 goalie_0 = Agent( DEVICE, GOALIE_0_KEY, goalie_actor_model, N_STEP )
+goalie_1 = Agent( DEVICE, GOALIE_1_KEY, goalie_actor_model, N_STEP )
 goalie_optimizer = Optimizer( DEVICE, goalie_actor_model, goalie_critic_model, goalie_optim,  
     N_STEP, BATCH_SIZE, GAMMA, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
 
 striker_0 = Agent( DEVICE, STRIKER_0_KEY, striker_actor_model, N_STEP )
+striker_1 = Agent( DEVICE, STRIKER_1_KEY, striker_actor_model, N_STEP )
 striker_optimizer = Optimizer( DEVICE, striker_actor_model, striker_critic_model, striker_optim,  
     N_STEP, BATCH_SIZE, GAMMA, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
 
@@ -130,12 +131,12 @@ def ppo_train():
             action_goalie_0, log_prob_goalie_0 = goalie_0.act( goalies_states[goalie_0.KEY] )
             action_striker_0, log_prob_striker_0 = striker_0.act( strikers_states[striker_0.KEY] )
 
-            # action_goalie_1, log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )
-            # action_striker_1, log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
+            action_goalie_1, log_prob_goalie_1 = goalie_1.act( goalies_states[goalie_1.KEY] )
+            action_striker_1, log_prob_striker_1 = striker_1.act( strikers_states[striker_1.KEY] )
             
             # random            
-            action_goalie_1 = np.asarray( [np.random.choice(goalie_action_size)] )
-            action_striker_1 = np.asarray( [np.random.choice(striker_action_size)] )
+            # action_goalie_1 = np.asarray( [np.random.choice(goalie_action_size)] )
+            # action_striker_1 = np.asarray( [np.random.choice(striker_action_size)] )
 
 
             actions_goalies = np.array( (action_goalie_0, action_goalie_1) )                                    
@@ -158,8 +159,8 @@ def ppo_train():
             # check if episode finished
             done = np.any(env_info[g_brain_name].local_done)
 
-            # learn
-            goalie_0_reward = goalies_rewards[goalie_0.KEY] # * (1 - TEAM_SPIRIT) + strikers_rewards[striker_0.KEY] * TEAM_SPIRIT
+            # store experiences
+            goalie_0_reward = goalies_rewards[goalie_0.KEY]
             goalie_0.step( 
                 goalies_states[goalie_0.KEY],
                 np.concatenate( 
@@ -174,8 +175,23 @@ def ppo_train():
                 goalie_0_reward 
             )
 
+            goalie_1_reward = goalies_rewards[goalie_1.KEY]
+            goalie_1.step( 
+                goalies_states[goalie_1.KEY],
+                np.concatenate( 
+                    (
+                        goalies_states[goalie_1.KEY],
+                        strikers_states[striker_1.KEY],
+                        goalies_states[GOALIE_0_KEY],
+                        strikers_states[STRIKER_0_KEY],
+                    ), axis=0 ),
+                action_goalie_1,
+                log_prob_goalie_1,
+                goalie_1_reward 
+            )
 
-            striker_0_reward = strikers_rewards[striker_0.KEY] # * (1 - TEAM_SPIRIT) + goalies_rewards[goalie_0.KEY] * TEAM_SPIRIT
+
+            striker_0_reward = strikers_rewards[striker_0.KEY]
             striker_0.step(                 
                 strikers_states[striker_0.KEY],
                 np.concatenate( 
@@ -190,6 +206,21 @@ def ppo_train():
                 striker_0_reward
             )
 
+            striker_1_reward = strikers_rewards[striker_1.KEY]
+            striker_1.step(                 
+                strikers_states[striker_1.KEY],
+                np.concatenate( 
+                    (
+                        strikers_states[striker_1.KEY],
+                        goalies_states[goalie_1.KEY],                        
+                        strikers_states[STRIKER_0_KEY],                 
+                        goalies_states[GOALIE_0_KEY]                        
+                    ), axis=0 ),               
+                action_striker_1,
+                log_prob_striker_1,
+                striker_1_reward
+            )
+
 
             # exit loop if episode finished
             if done:
@@ -201,8 +232,11 @@ def ppo_train():
 
             steps += 1
 
+        # learn
         goalie_loss = goalie_optimizer.learn(goalie_0.memory)
+        goalie_loss = goalie_optimizer.learn(goalie_1.memory)
         striker_loss = striker_optimizer.learn(striker_0.memory)        
+        striker_loss = striker_optimizer.learn(striker_1.memory)        
 
         goalie_actor_model.checkpoint( CHECKPOINT_GOALIE_ACTOR )   
         goalie_critic_model.checkpoint( CHECKPOINT_GOALIE_CRITIC )    
@@ -224,12 +258,12 @@ def ppo_train():
         print('\tBlue Wins: \t{} \tScore: \t{:.5f} \tAvg: \t{:.2f}'.format( np.count_nonzero(team_1_window_score_wins), team_1_score, np.sum(team_1_window_score) ))
         print('\tDraws: \t{}'.format( np.count_nonzero(draws) ))
 
-        if np.count_nonzero( team_0_window_score_wins ) >= 95:
+        if np.count_nonzero( team_0_window_score_wins ) >= 100:
             break
     
 
 # train the agent
-# ppo_train()
+ppo_train()
 
 # test the trained agents
 team_0_window_score = deque(maxlen=100)

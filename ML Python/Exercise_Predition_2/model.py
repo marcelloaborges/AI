@@ -23,11 +23,11 @@ class Model(nn.Module):
                 
     def forward(self, x):        
         x = F.relu( self.fc1(x) )
-        x = self.dout( x )
         x = F.relu( self.fc2(x) )
-        prob = torch.sigmoid(self.fcOut(x) )        
+        # prob = torch.sigmoid( self.fcOut(x) )        
+        probs = F.softmax( self.fcOut(x) )
         
-        return prob
+        return probs
     
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):
