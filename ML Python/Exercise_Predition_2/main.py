@@ -20,4 +20,8 @@ cleaner = Cleaner()
 feed, target = cleaner.generate_feed_n_target(csv_data_file)
 
 trainer = Trainer(FEED_SIZE, OUTPUT_SIZE, FC1_UNITS, FC2_UNITS, LR, CHECKPOINT)
-trainer.train(feed, target, BATCH_SIZE, EPOCHS)
+# With Logistic Regression
+trainer.train_with_logistic_regression(feed, target)
+
+# With NN
+trainer.train_with_nn(feed, target, BATCH_SIZE, EPOCHS)

@@ -8,6 +8,8 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from sklearn.cross_validation import train_test_split as tts
 from sklearn.metrics import confusion_matrix
 
+from sklearn.linear_model import LogisticRegression
+
 from model import Model
 
 class Trainer:
@@ -20,13 +22,53 @@ class Trainer:
         self.checkpoint = checkpoint
 
         self.model.load(self.checkpoint)
+
+        self.classifier = LogisticRegression(random_state=0)
         
-    def train(self, feed, target, batch_size=512, epochs=1):
+    def train_with_logistic_regression(self, feed, target):
+        # subsets        
+        train_feed, test_feed, train_target, test_target = tts(feed, target, test_size=0.1, random_state=0)
+
+        print('Learning: Logistic Regression')
+
+        self.classifier.fit(train_feed, train_target)
+
+        print('\nEnd')
+        print('')
+
+        self._test_with_logistic_regression(test_feed, test_target)
+    
+    def _test_with_logistic_regression(self, feed, target):
+        print('Checking accuracy...')
+        print('')
+
+        test_predictions = self.classifier.predict(feed)
+
+        test_target = target.astype(np.uint8)
+        test_predictions = np.asarray( [ np.round(x) for x in test_predictions ] )    
+
+        cm = confusion_matrix(test_target, test_predictions)
+
+        diagonal_sum = cm.trace()
+        all_elements = cm.sum()
+        accuracy = diagonal_sum / all_elements
+        print('Confusion matrix')
+        print(cm)
+        print('')
+        print('Accuracy: {:.2f}'.format(accuracy))
+
+        print('')
+        print('End')
+        
+    
+    def train_with_nn(self, feed, target, batch_size=512, epochs=1):
 
         # subsets
         train_feed, test_feed, train_target, test_target = tts(feed, target, test_size=0.1, random_state=0)
 
-        print('Learning...')
+        print('Learning: Neural Model')
+
+        self.classifier.fit(train_feed, train_target)
 
         criterion = nn.BCELoss()
         for epoch in range(epochs):
@@ -60,11 +102,11 @@ class Trainer:
         print('\nEnd')
         print('')
 
-        self._test(test_feed, test_target)
+        self._test_with_nn(test_feed, test_target)
 
-        # self.model.checkpoint(self.checkpoint)
+        self.model.checkpoint(self.checkpoint)
 
-    def _test(self, feed, target, batch_size=512):
+    def _test_with_nn(self, feed, target, batch_size=512):
 
         print('Checking accuracy...')
         print('')

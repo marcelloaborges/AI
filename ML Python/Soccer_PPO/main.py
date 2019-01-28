@@ -229,7 +229,7 @@ def ppo_train():
     
 
 # train the agent
-ppo_train()
+# ppo_train()
 
 # test the trained agents
 team_0_window_score = deque(maxlen=100)

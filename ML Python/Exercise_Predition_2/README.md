@@ -24,25 +24,24 @@ Predizer a probabilidade de <b>CarInsurance</b>.
 
 
 ## A solução:
-Optei por utilizar um modelo neural na solução deste problema. É uma tarefa de classificação binária, ou seja,
-requer uma resposta Sim/Não. A estrutura que foi contruída é relativamente "clássica" para tarefas desse tipo.
-Como função de ativação decisória foi aplicada uma sigmoid que estima o grau de certeza com relação a possibilidade
-do cliente aceitar a oferta de seguro, e para testar a acurácia, foi utilizada uma matriz de confusão. Como a saída do
-modelo neural é somente uma probabilidade e não acesso ao que seria um grau de certeza considerado bom (em cenários 
-médicos um grau de certeza bom considera apenas valor superiores a 95% por exemplo), utilizei um arredondamento simples 
-do valor da saída para converter a probabilidade em 0 ou 1 e testar a acurácia na matriz de confusão, o que quer dizer,
-que qualquer valor acima de 50% considera que o cliente aceitaria o seguro enquanto que valores abaixo de 50% dizem o
-contrário.
-O modelo está convergindo muito bem. A taxa de erro chega a menos de 0.0001, porém a acurácia está muito baixa, 
-aproximadamente 52%. Acredito que o motivo da acurácia está baixa é a falta de cenários sufientes para que o modelo
-consiga generalizar o problema eficientemente. A base de dados conta com apenas 4000 cenários para predizer uma 
-probabilidade que considera 15 variavéis diferentes em sua decisão. Em casos assim, quando os dados de treino são 
-poucos, é comum que problemas com essa magnitude apresentem baixa acurácia devido ao fato de que o modelo não vivencia
-cenários sufientes para conseguir decidir qual a ação correta em situações muito próximas e, é isto o que eu acredito
-estar acontecendo nesse caso.
+Para avaliação de algumas considerações feitas por colegas, apliquei duas soluções a esse problema: uma regressão 
+logística vs um modelo neural. O ponto era checar a eficiência de duas soluções em uma base pequena.
+É uma classificação binária e a primeira versão continha apenas a implementação com o modelo neural.
+Após alguns testes com o modelo neural, conclui que a base deveria ser maior para que a acurácia do modelo 
+conseguisse melhor performance.
+Questionado por colegas a respeito da solução apresentada, resolvi implementar uma segunda versão utilizando 
+uma regressão logística sugerida por eles e realmente os resultados foram excepcionais. 
+Com apenas 4000 registros na base, o modelo logístico consegue 100% de acurácia.
+Fica como lição que apesar de parecerem pouco robustas, soluções mais simples podem ter performance muito superior
+a modelo complexos. Basta que o contexto do problema seja favorável a elas.
+Obrigado pelas considerações.
 
 
 ## Results:
+Regressão Logística:
+- Accuracy: 100%
+
+Modelo Neural:
 - Loss: ~0.001% (binary cross-entropy)
 - Accuracy: ~52% (arredondamento de uma sigmoid comparada a coluna <b>CarInsurance</b>)
 
