@@ -12,29 +12,25 @@ class Optimizer:
 
     def __init__(self, 
         device,
-        state_size,
-        action_size,        
-        lr,
-        weight_decay,
-        memory,
-        n_step,
-        gamma, TAU,
-        checkpoint_folder):
+        actor_model, actor_target, actor_optim, 
+        critic_model, critic_target, critic_optim, 
+        shared_memory,
+        n_step, gamma, TAU):
 
         self.DEVICE = device
 
-        self.checkpoint_file = checkpoint_folder + 'checkpoint_critic.pth'
+        # Actor Network (w/ Target Network)
+        self.actor_model = actor_model
+        self.actor_target = actor_target
+        self.actor_optim = actor_optim
 
         # Critic Network (w/ Target Network)
-        self.critic_model = CriticModel(state_size, action_size).to(self.DEVICE)
-        self.critic_target_model = CriticModel(state_size, action_size).to(self.DEVICE)
-        self.critic_optimizer = optim.Adam(self.critic_model.parameters(), lr=lr, weight_decay=weight_decay)
-
-        self.critic_model.load(self.checkpoint_file)
-        self.critic_target_model.load(self.checkpoint_file)
+        self.critic_model = critic_model
+        self.critic_target = critic_target
+        self.critic_optimizer = critic_optim
 
         # Shared memory
-        self.memory = memory
+        self.memory = shared_memory
 
         # Hyperparameters
         self.N_STEP = n_step
@@ -42,22 +38,19 @@ class Optimizer:
         self.TAU = TAU        
         
         self.t_step = 0
+        self.actor_loss = 0
         self.critic_loss = 0
 
-    def step(self, agent):
+    def step(self):
         self.t_step = (self.t_step + 1) % self.N_STEP  
-        if self.t_step != 0:
-            return self.critic_loss
+        if self.t_step == 0:
+            # Learn, if enough samples are available in memory          
+            if self.memory.enough_experiences():
+                self._learn()                    
+        
+        return self.actor_loss, self.critic_loss        
 
-        # Learn, if enough samples are available in memory  
-        if not self.memory.enough_experiences():
-            return self.critic_loss
-
-        self.learn(agent)
-
-        return self.critic_loss
-
-    def learn(self, agent):
+    def _learn(self):
         """Update policy and value parameters using given batch of experience tuples.
         Q_targets = r + γ * target(next_state, actor_target(next_state))
         where:
@@ -77,13 +70,22 @@ class Optimizer:
         next_states = torch.from_numpy(next_states).float().to(self.DEVICE)
         dones = torch.from_numpy(dones.astype(np.uint8)).float().to(self.DEVICE)
         
+
+        # advantages = torch.Tensor(np.zeros(rewards.shape)).to(self.DEVICE)
+
+        # for r in reversed( range(len(rewards) - 1) ):
+        #     returns = rewards + GAMMA * terminals * returns
+        #     td_error = rewards + GAMMA * terminals * next_value.detach() - value.detach()
+        #     advantages = advantages * TAU * GAMMA * terminals + td_error
+
+
         # weights = torch.tensor(weights, device=self.DEVICE, dtype=torch.float)
 
         # ---------------------------- update critic ---------------------------- #
         # Get predicted next-state actions and Q values from target models
-        actions_next = agent.actor_target_model(next_states)
+        actions_next = self.actor_target(next_states)
         # Q_targets = self.critic_target_model(states, actions)
-        Q_targets_next = self.critic_target_model(next_states, actions_next)
+        Q_targets_next = self.critic_target(next_states, actions_next)
         # Compute Q targets for current states (y_i)
         Q_targets = rewards + (self.GAMMA * Q_targets_next * (1 - dones))
         # Compute critic loss
@@ -92,27 +94,29 @@ class Optimizer:
         # Minimize the loss
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
-        torch.nn.utils.clip_grad_norm(self.critic_model.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm(self.critic_model.parameters(), 1)
         self.critic_optimizer.step()
 
         self.critic_loss = critic_loss        
 
         # ---------------------------- update actor ---------------------------- #
         # Compute actor loss
-        actions_pred = agent.actor_model(states)
+        actions_pred = self.actor_model(states)
         actor_loss = - self.critic_model(states, actions_pred).mean()
         # Minimize the loss
-        agent.actor_optim.zero_grad()
+        self.actor_optim.zero_grad()
         actor_loss.backward()
-        agent.actor_optim.step()        
+        self.actor_optim.step()    
+
+        self.actor_loss = actor_loss    
 
         # ------------------------- update experiences ------------------------- #
         # exp_loss = (Q_expected - Q_targets).detach().squeeze().abs().cpu().numpy().tolist()
         # self.memory.update_priorities(indices, exp_loss)
 
         # ----------------------- update target networks ----------------------- #
-        self.soft_update(self.critic_model, self.critic_target_model)
-        self.soft_update(agent.actor_model, agent.actor_target_model)        
+        self.soft_update(self.critic_model, self.critic_target)
+        self.soft_update(self.actor_model, self.actor_target)
 
     def soft_update(self, local_model, target_model):
         """Soft update model parameters.
@@ -126,6 +130,3 @@ class Optimizer:
         tau = self.TAU
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
-
-    def checkpoint(self):
-        self.critic_model.checkpoint( self.checkpoint_file )

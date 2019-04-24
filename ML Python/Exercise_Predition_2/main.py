@@ -4,11 +4,11 @@ from train import Trainer
 
 # Hyperparameter configration
 FEED_SIZE = 44
-FC1_UNITS = 16
-FC2_UNITS = 8
+FC1_UNITS = 32
+FC2_UNITS = 16
 OUTPUT_SIZE = 2
 LR = 1e-4
-BATCH_SIZE = 8
+BATCH_SIZE = 32
 EPOCHS = 100
 CHECKPOINT = './checkpoint.pth'
 

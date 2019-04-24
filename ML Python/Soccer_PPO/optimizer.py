@@ -110,7 +110,7 @@ class Optimizer:
 
             losses.append( loss.data )
 
-        self.EPSILON *= 1
+        # self.EPSILON *= 1
         self.ENTROPY_WEIGHT *= 0.995
 
         return np.average( losses )

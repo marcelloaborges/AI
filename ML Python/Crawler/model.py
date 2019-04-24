@@ -14,36 +14,42 @@ def hidden_init(layer):
 class ActorModel(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size, action_size, fc1_units=256, fc2_units=256, fc3_units=256, fc4_units=128):
+    def __init__(self, state_size, action_size, fc1_units=1024, fc2_units=1024, fc3_units=1024, fc4_units=128):
                 
         super(ActorModel, self).__init__()        
         
-        # self.bn1 = nn.BatchNorm1d(num_features=state_size)
-        self.fc1 = nn.Linear(state_size, fc1_units)        
-        # self.dout = nn.Dropout(0.2)                
+        self.bn1 = nn.BatchNorm1d(num_features=state_size)
+        self.fc1 = nn.Linear(state_size, fc1_units)       
+        # self.dout = nn.Dropout(0.2)                 
+        self.bn2 = nn.BatchNorm1d(num_features=fc1_units)
         self.fc2 = nn.Linear(fc1_units, fc2_units)        
-        # self.fc3 = nn.Linear(fc2_units, fc3_units)
+        self.bn3 = nn.BatchNorm1d(num_features=fc2_units)        
+        self.fc3 = nn.Linear(fc2_units, fc3_units)
         # self.fc4 = nn.Linear(fc3_units, fc4_units)
-        self.fc_out = nn.Linear(fc2_units, action_size)
+        self.bn_out = nn.BatchNorm1d(num_features=fc3_units)        
+        self.fc_out = nn.Linear(fc3_units, action_size)
         self.reset_parameters()
 
     def reset_parameters(self):
         self.fc1.weight.data.uniform_(*hidden_init(self.fc1))
         self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
-        # self.fc3.weight.data.uniform_(*hidden_init(self.fc3))
+        self.fc3.weight.data.uniform_(*hidden_init(self.fc3))
         # self.fc4.weight.data.uniform_(*hidden_init(self.fc4))
         # self.fc_out.weight.data.uniform_(*hidden_init(self.fc_out))
         self.fc_out.weight.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""        
-        # x = self.bn1(state)     
-        x = F.relu(self.fc1(state))           
+        x = self.bn1(state)     
+        x = F.relu(self.fc1(x))           
         # x = self.dout( x )
-        x = F.relu(self.fc2(x))        
-        # x = F.relu(self.fc3(x))
+        x = self.bn2(x)     
+        x = F.relu(self.fc2(x))
+        x = self.bn3(x)
+        x = F.relu(self.fc3(x))
         # x = F.relu(self.fc4(x))
-        return torch.tanh(self.fc_out(x))
+        x = self.bn_out(x)
+        return F.tanh(self.fc_out(x))
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):
@@ -56,7 +62,7 @@ class ActorModel(nn.Module):
 class CriticModel(nn.Module):
     """Critic (Value) Model."""
 
-    def __init__(self, state_size, action_size, fcs1_units=256, fc2_units=256, fc3_units=128, fc4_units=256):
+    def __init__(self, state_size, action_size, fcs1_units=1024, fc2_units=1024, fc3_units=1024, fc4_units=64):
         """Initialize parameters and build model.
         Params
         ======
@@ -66,12 +72,15 @@ class CriticModel(nn.Module):
             fc2_units (int): Number of nodes in the second hidden layer
         """
         super(CriticModel, self).__init__()        
-        # self.bn1 = nn.BatchNorm1d(num_features=state_size)
+        self.bn1 = nn.BatchNorm1d(num_features=state_size)
         self.fcs1 = nn.Linear(state_size, fcs1_units)        
         # self.dout = nn.Dropout(0.2)
+        self.bn2 = nn.BatchNorm1d(num_features=fcs1_units)
         self.fc2 = nn.Linear(fcs1_units + action_size, fc2_units)        
+        self.bn3 = nn.BatchNorm1d(num_features=fc2_units)
         self.fc3 = nn.Linear(fc2_units, fc3_units)
         # self.fc4 = nn.Linear(fc3_units, fc4_units)
+        self.bn_out = nn.BatchNorm1d(num_features=fc3_units)
         self.fc_out = nn.Linear(fc3_units, 1)
         self.reset_parameters()
 
@@ -85,14 +94,17 @@ class CriticModel(nn.Module):
 
     def forward(self, state, action):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""        
-        # xs = self.bn1(state)
-        xs = F.relu(self.fcs1(state))
+        xs = self.bn1(state)
+        xs = F.relu(self.fcs1(xs))
         # x = self.dout( xs )
+        x = self.bn2(xs)
         x = torch.cat((xs, action), dim=1)        
         x = F.relu(self.fc2(x))        
+        x = self.bn3(x)
         x = F.relu(self.fc3(x))
         # x = F.relu(self.fc4(x))
-        return self.fc_out(x)
+        x = self.bn_out(x)
+        return F.relu(self.fc_out(x))        
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

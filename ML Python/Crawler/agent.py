@@ -10,27 +10,15 @@ from model import ActorModel
 class Agent:
 
     def __init__(self, 
-        device,
-        key,
-        state_size,
-        action_size,
-        lr,
-        weight_decay,
+        device,        
+        actor_model,
         memory,
-        noise, 
-        checkpoint_folder):
+        noise):
 
         self.DEVICE = device
-        self.KEY = key        
-        self.checkpoint_file = checkpoint_folder + 'checkpoint_actor_' + str(self.KEY) + '.pth'
 
-        # Actor Network (w/ Target Network)
-        self.actor_model = ActorModel(state_size, action_size).to(self.DEVICE)
-        self.actor_target_model = ActorModel(state_size, action_size).to(self.DEVICE)
-        self.actor_optim = optim.Adam(self.actor_model.parameters(), lr=lr, weight_decay=weight_decay)
-
-        self.actor_model.load(self.checkpoint_file)
-        self.actor_target_model.load(self.checkpoint_file)
+        # Actor Network
+        self.actor_model = actor_model
 
         # Replay memory        
         self.memory = memory
@@ -52,13 +40,16 @@ class Agent:
     
         return np.clip(action, -1, 1)
 
-    def step(self, state, action, reward, next_state, done):
-        """Save experience in replay memory, and use random sample from buffer to learn."""
+    def step(self, keys, state, action, reward, next_state, done):
         # Save experience / reward        
-        self.memory.add(state, action, reward, next_state, done)
+        self.memory.add( 
+            np.array( keys ).reshape( -1, 1 ),
+            state,
+            action,
+            np.array( reward ).reshape( -1, 1 ),
+            next_state,
+            np.array( done ).reshape( -1, 1 )
+        )
 
     def reset(self):
         self.noise.reset()
-
-    def checkpoint(self):
-        self.actor_model.checkpoint( self.checkpoint_file )
