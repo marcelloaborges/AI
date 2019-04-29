@@ -19,7 +19,7 @@ from optimizer import Optimizer
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # environment configuration
-env = UnityEnvironment(file_name="../Environments/Crawler_Windows_x86_64/Crawler.exe", no_graphics=True)
+env = UnityEnvironment(file_name="../Environments/Crawler_Windows_x86_64/Crawler.exe", no_graphics=False)
 
 # get the default brain
 brain_name = env.brain_names[0]
@@ -43,13 +43,14 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
+T_MAX_STEPS = 16
 BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 64         # minibatch size
 N_STEP = 1
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
 LR_ACTOR = 1e-4         # learning rate of the actor 
-LR_CRITIC = 1e-4        # learning rate of the critic
+LR_CRITIC = 8e-5        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
@@ -57,8 +58,9 @@ ADD_NOISE = True
 CHECKPOINT_ACTOR = './checkpoint_actor.pth'
 CHECKPOINT_CRITIC = './checkpoint_critic.pth'
 
+agent_keys = np.arange( 0, num_agents )
 
-shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+shared_memory = ReplayMemory(agent_keys)
 # shared_memory = PrioritizedReplayMemory(BUFFER_SIZE, BATCH_SIZE)
 noise = OUNoise(action_size)
 
@@ -112,30 +114,30 @@ def maddpg_train():
             env_info = env.step(actions)[brain_name]           # send all actions to tne environment
             next_states = env_info.vector_observations         # get next state (for each agent)
             rewards = env_info.rewards                         # get reward (for each agent)
-            dones = env_info.local_done                        # see if episode finished
-
-            keys = np.arange( 0, num_agents )
+            dones = env_info.local_done                        # see if episode finished            
                         
             agent.step( 
-                keys,
+                agent_keys,
                 states,
                 actions,
                 rewards,
                 next_states,
                 dones
-            )
+            )            
 
-            actor_loss, critic_loss = optimizer.step()
-
-            score += rewards                                   # update the score (for each agent)
-
-            states = next_states                               # roll over states to next time step
+            score += rewards                                   # update the score (for each agent)            
 
             if np.any(dones):                                  # exit loop if episode finished
                 break
+            
+            if (steps + 1) % T_MAX_STEPS == 0:
+                actor_loss, critic_loss = optimizer.learn()
+            
+            states = next_states                               # roll over states to next time step
 
             steps += 1
 
+        actor_loss, critic_loss = optimizer.learn()
         
         actor_model.checkpoint(CHECKPOINT_ACTOR)
         critic_model.checkpoint(CHECKPOINT_CRITIC)

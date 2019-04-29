@@ -42,14 +42,15 @@ class Agent:
 
     def step(self, keys, state, action, reward, next_state, done):
         # Save experience / reward        
-        self.memory.add( 
-            np.array( keys ).reshape( -1, 1 ),
-            state,
-            action,
-            np.array( reward ).reshape( -1, 1 ),
-            next_state,
-            np.array( done ).reshape( -1, 1 )
-        )
+        for i, key in enumerate(keys):
+            self.memory.add( 
+                key,
+                state[i],
+                action[i],
+                np.array( reward[i] ),
+                next_state[i],
+                np.array( done[i] )
+            )
 
     def reset(self):
         self.noise.reset()

@@ -49,7 +49,7 @@ class ActorModel(nn.Module):
         x = F.relu(self.fc3(x))
         # x = F.relu(self.fc4(x))
         x = self.bn_out(x)
-        return F.tanh(self.fc_out(x))
+        return torch.tanh(self.fc_out(x))
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):
@@ -104,7 +104,7 @@ class CriticModel(nn.Module):
         x = F.relu(self.fc3(x))
         # x = F.relu(self.fc4(x))
         x = self.bn_out(x)
-        return F.relu(self.fc_out(x))        
+        return self.fc_out(x)
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

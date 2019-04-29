@@ -41,16 +41,14 @@ class Optimizer:
         self.actor_loss = 0
         self.critic_loss = 0
 
-    def step(self):
-        self.t_step = (self.t_step + 1) % self.N_STEP  
-        if self.t_step == 0:
-            # Learn, if enough samples are available in memory          
-            if self.memory.enough_experiences():
-                self._learn()                    
+    # def step(self):
+    #     self.t_step = (self.t_step + 1) % self.N_STEP  
+    #     if self.t_step == 0:            
+    #         self._learn()                    
         
-        return self.actor_loss, self.critic_loss        
+    #     return self.actor_loss, self.critic_loss        
 
-    def _learn(self):
+    def learn(self):
         """Update policy and value parameters using given batch of experience tuples.
         Q_targets = r + γ * target(next_state, actor_target(next_state))
         where:
@@ -62,24 +60,37 @@ class Optimizer:
             gamma (float): discount factor
         """
           
-        states, actions, rewards, next_states, dones = self.memory.sample()
-
-        states = torch.from_numpy(states).float().to(self.DEVICE)
-        actions = torch.from_numpy(actions).float().to(self.DEVICE)
-        rewards = torch.from_numpy(rewards).float().to(self.DEVICE)
-        next_states = torch.from_numpy(next_states).float().to(self.DEVICE)
-        dones = torch.from_numpy(dones.astype(np.uint8)).float().to(self.DEVICE)
+        # keys, states, actions, rewards, next_states, dones = self.memory.sample()
+        experiences = self.memory.sample()
         
+        states      = []
+        actions     = []
+        rewards     = []
+        next_states = []
+        dones       = []
 
-        # advantages = torch.Tensor(np.zeros(rewards.shape)).to(self.DEVICE)
+        for key, experience in experiences.items():
+            temp_reward = []
+            for exp in experience:
+                states.append(      exp['state']      )
+                actions.append(     exp['action']     )
+                temp_reward.append( exp['reward']     )
+                next_states.append( exp['next_state'] )
+                dones.append(       exp['done']       )
 
-        # for r in reversed( range(len(rewards) - 1) ):
-        #     returns = rewards + GAMMA * terminals * returns
-        #     td_error = rewards + GAMMA * terminals * next_value.detach() - value.detach()
-        #     advantages = advantages * TAU * GAMMA * terminals + td_error
+            discount = self.GAMMA**np.arange(len(temp_reward))
+            temp_reward = temp_reward * discount
+            temp_reward = temp_reward[::-1].cumsum(axis=0)[::-1]
+
+            rewards.extend( temp_reward )
 
 
-        # weights = torch.tensor(weights, device=self.DEVICE, dtype=torch.float)
+        states      = torch.from_numpy( np.array(states)                                ).float().to(self.DEVICE)
+        actions     = torch.from_numpy( np.array(actions)                               ).float().to(self.DEVICE)
+        rewards     = torch.from_numpy( np.array(rewards).reshape(-1, 1)                ).float().to(self.DEVICE)
+        next_states = torch.from_numpy( np.array(next_states)                           ).float().to(self.DEVICE)
+        dones       = torch.from_numpy( np.array(dones).astype(np.uint8).reshape(-1, 1) ).float().to(self.DEVICE)
+    
 
         # ---------------------------- update critic ---------------------------- #
         # Get predicted next-state actions and Q values from target models
@@ -117,6 +128,8 @@ class Optimizer:
         # ----------------------- update target networks ----------------------- #
         self.soft_update(self.critic_model, self.critic_target)
         self.soft_update(self.actor_model, self.actor_target)
+
+        return self.actor_loss, self.critic_loss
 
     def soft_update(self, local_model, target_model):
         """Soft update model parameters.
