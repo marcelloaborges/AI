@@ -47,8 +47,8 @@ N_STEP = 64
 BATCH_SIZE = 32
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
-LR_ACTOR = 1e-5         # learning rate of the actor 
-LR_CRITIC = 1e-5        # learning rate of the critic
+LR_ACTOR = 1e-4         # learning rate of the actor 
+LR_CRITIC = 1e-4        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True

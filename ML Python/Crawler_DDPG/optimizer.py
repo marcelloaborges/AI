@@ -119,7 +119,7 @@ class Optimizer:
             # Minimize the loss
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
-            torch.nn.utils.clip_grad_norm(self.critic_model.parameters(), 1)
+            torch.nn.utils.clip_grad_norm(self.critic_model.parameters(), 0.5)
             self.critic_optimizer.step()
 
             self.critic_loss = critic_loss.data
