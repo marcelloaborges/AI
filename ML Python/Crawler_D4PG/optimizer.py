@@ -72,6 +72,7 @@ class Optimizer:
                 rewards.append    ( exp['reward']     )
                 next_states.append( exp['next_state'] )
                 dones.append      ( exp['done']       )
+                        
 
             states      = torch.from_numpy( np.array(states)                 ).float().to(self.DEVICE)
             actions     = torch.from_numpy( np.array(actions)                ).float().to(self.DEVICE)
@@ -80,6 +81,8 @@ class Optimizer:
             dones       = torch.from_numpy( np.array(dones).astype(np.uint8) ).float().to(self.DEVICE)
             importance  = torch.from_numpy( np.array(importance)             ).float().to(self.DEVICE)
                             
+            # normalizing rewards
+            # rewards = (rewards - rewards.mean()) / (rewards.std() + 1.0e-10)
 
             # ---------------------------- update critic ---------------------------- #
             # Get predicted next-state actions and Q values from target models

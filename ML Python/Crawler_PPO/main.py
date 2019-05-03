@@ -6,15 +6,8 @@ from collections import deque
 import torch
 import torch.optim as optim
 
-
-from replay_memory import ReplayMemory
+from model import ActorCriticModel
 from simple_memory import SimpleMemory
-# from prioritized_replay_memory import PrioritizedReplayMemory
-
-from noise import OUNoise
-
-from model import ActorModel, CriticModel
-
 from agent import Agent
 from optimizer import Optimizer
 
@@ -45,44 +38,28 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 4
-BUFFER_SIZE = int(1e6)
-BATCH_SIZE = 256
+N_STEP = 16
+BUFFER_SIZE = int(1e5)
+BATCH_SIZE = 128
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
-LR_ACTOR = 1e-5         # learning rate of the actor 
-LR_CRITIC = 3e-5        # learning rate of the critic
+LR = 1e-4               # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
-ADD_NOISE = True
 MODE = False
 
-CHECKPOINT_ACTOR = './checkpoint_actor.pth'
-CHECKPOINT_CRITIC = './checkpoint_critic.pth'
+CHECKPOINT = './checkpoint.pth'
 
 agent_keys = np.arange( 0, num_agents )
 
-local_memory = SimpleMemory(agent_keys)
-shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
-noise = OUNoise(action_size)
+shared_memory = SimpleMemory(agent_keys)
 
-actor_model = ActorModel(state_size, action_size).to(DEVICE)
-actor_target = ActorModel(state_size, action_size).to(DEVICE)
-actor_optimizer = optim.Adam(actor_model.parameters(), lr=LR_ACTOR)
+actor_critic_model = ActorCriticModel(state_size, action_size).to(DEVICE)
+actor_critic_optimizer = optim.Adam(actor_critic_model.parameters(), lr=LR)
 
-critic_model = CriticModel(state_size, action_size).to(DEVICE)
-critic_target = CriticModel(state_size, action_size).to(DEVICE)
-critic_optimizer = optim.Adam(critic_model.parameters(), lr=LR_CRITIC)
+actor_critic_model.load(CHECKPOINT)
 
-
-actor_model.load(CHECKPOINT_ACTOR)
-actor_target.load(CHECKPOINT_ACTOR)
-
-critic_model.load(CHECKPOINT_CRITIC)
-critic_target.load(CHECKPOINT_CRITIC)
-
-
-agent = Agent(DEVICE, actor_model, local_memory, shared_memory, noise, GAMMA, N_STEP)
+agent = Agent(DEVICE, actor_critic_model, shared_memory)
 
 optimizer = Optimizer(DEVICE, 
     actor_model, actor_target, actor_optimizer, 
@@ -100,16 +77,13 @@ def maddpg_train():
         env_info = env.reset(train_mode=MODE)[brain_name]     # reset the environment    
         states = env_info.vector_observations                 # get the current state (for each agent)
                 
-        agent.reset()    
-
-        actor_loss = 0
-        critic_loss = 0               
+        loss = 0
 
         score = np.zeros(num_agents)                          # initialize the score (for each agent)
         steps = 0
 
         while True:
-            actions = agent.act( states, ADD_NOISE )
+            actions, log_probs = agent.act( states )
             
             env_info = env.step(actions)[brain_name]           # send all actions to tne environment
             next_states = env_info.vector_observations         # get next state (for each agent)
@@ -120,12 +94,11 @@ def maddpg_train():
                 agent_keys,
                 states,
                 actions,
-                rewards,
-                next_states,
-                dones
+                log_probs,
+                rewards
             )            
 
-            actor_loss, critic_loss = optimizer.learn()
+            loss = optimizer.learn()
 
             score += rewards                                   # update the score (for each agent)            
 
@@ -140,15 +113,13 @@ def maddpg_train():
         scores_window.append(np.max(score))
 
         print('Episode: \t{} \tSteps: \t{} \tScore: \t{:.2f} \tMax Score: \t{:.2f} \tAverage Score: \t{:.2f}'.format(episode, steps, np.max(score), np.max(scores), np.mean(scores_window)))  
-        print('Actor loss: \t{:.8f}'.format(actor_loss))
-        print('Critic loss: \t{:.8f}'.format(critic_loss))     
+        print('Loss: \t{:.8f}'.format(loss))
         print('')       
         if np.mean(scores_window) >= 2000:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
             break    
     
-    actor_model.checkpoint(CHECKPOINT_ACTOR)
-    critic_model.checkpoint(CHECKPOINT_CRITIC)
+    actor_critic_model.checkpoint(CHECKPOINT)
 
 
 # train the agent
