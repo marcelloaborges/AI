@@ -7,9 +7,9 @@ import torch
 import torch.optim as optim
 
 
-from replay_memory import ReplayMemory
 from simple_memory import SimpleMemory
-# from prioritized_replay_memory import PrioritizedReplayMemory
+# from replay_memory import ReplayMemory
+from prioritized_replay_memory import PrioritizedReplayMemory
 
 from noise import OUNoise
 
@@ -45,13 +45,13 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 16
+N_STEP = 8
 BUFFER_SIZE = int(1e6)
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 GAMMA = 0.99            # discount factor
-TAU = 1e-2              # for soft update of target parameters
-LR_ACTOR = 1e-4         # learning rate of the actor 
-LR_CRITIC = 1e-5        # learning rate of the critic
+TAU = 2e-1              # for soft update of target parameters
+LR_ACTOR = 1e-5         # learning rate of the actor 
+LR_CRITIC = 3e-5        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
@@ -63,7 +63,8 @@ CHECKPOINT_CRITIC = './checkpoint_critic.pth'
 agent_keys = np.arange( 0, num_agents )
 
 local_memory = SimpleMemory(agent_keys)
-shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+# shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+shared_memory = PrioritizedReplayMemory(BUFFER_SIZE, BATCH_SIZE)
 noise = OUNoise(action_size)
 
 actor_model = ActorModel(state_size, action_size).to(DEVICE)
@@ -134,10 +135,7 @@ def maddpg_train():
             
             states = next_states                               # roll over states to next time step
 
-            steps += 1                        
-
-        actor_model.checkpoint(CHECKPOINT_ACTOR)
-        critic_model.checkpoint(CHECKPOINT_CRITIC)
+            steps += 1                                
 
         scores.append(np.max(score))
         scores_window.append(np.max(score))
@@ -149,6 +147,9 @@ def maddpg_train():
         if np.mean(scores_window) >= 2000:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
             break    
+    
+    actor_model.checkpoint(CHECKPOINT_ACTOR)
+    critic_model.checkpoint(CHECKPOINT_CRITIC)
 
 
 # train the agent

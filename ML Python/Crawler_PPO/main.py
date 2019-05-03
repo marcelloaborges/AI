@@ -8,7 +8,9 @@ import torch.optim as optim
 
 
 from replay_memory import ReplayMemory
+from simple_memory import SimpleMemory
 # from prioritized_replay_memory import PrioritizedReplayMemory
+
 from noise import OUNoise
 
 from model import ActorModel, CriticModel
@@ -43,22 +45,25 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 64
-BATCH_SIZE = 32
+N_STEP = 4
+BUFFER_SIZE = int(1e6)
+BATCH_SIZE = 256
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
-LR_ACTOR = 1e-4         # learning rate of the actor 
-LR_CRITIC = 1e-4        # learning rate of the critic
+LR_ACTOR = 1e-5         # learning rate of the actor 
+LR_CRITIC = 3e-5        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
+MODE = False
 
 CHECKPOINT_ACTOR = './checkpoint_actor.pth'
 CHECKPOINT_CRITIC = './checkpoint_critic.pth'
 
 agent_keys = np.arange( 0, num_agents )
 
-shared_memory = ReplayMemory(agent_keys)
+local_memory = SimpleMemory(agent_keys)
+shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
 noise = OUNoise(action_size)
 
 actor_model = ActorModel(state_size, action_size).to(DEVICE)
@@ -77,13 +82,13 @@ critic_model.load(CHECKPOINT_CRITIC)
 critic_target.load(CHECKPOINT_CRITIC)
 
 
-agent = Agent(DEVICE, actor_model, shared_memory, noise)
+agent = Agent(DEVICE, actor_model, local_memory, shared_memory, noise, GAMMA, N_STEP)
 
 optimizer = Optimizer(DEVICE, 
     actor_model, actor_target, actor_optimizer, 
     critic_model, critic_target, critic_optimizer, 
     shared_memory, 
-    N_STEP, BATCH_SIZE, GAMMA, TAU)
+    GAMMA, TAU)
 
 
 def maddpg_train():
@@ -92,7 +97,7 @@ def maddpg_train():
     scores_window = deque(maxlen=100)
 
     for episode in range(n_episodes):
-        env_info = env.reset(train_mode=True)[brain_name]     # reset the environment    
+        env_info = env.reset(train_mode=MODE)[brain_name]     # reset the environment    
         states = env_info.vector_observations                 # get the current state (for each agent)
                 
         agent.reset()    
@@ -120,7 +125,7 @@ def maddpg_train():
                 dones
             )            
 
-            actor_loss, critic_loss = optimizer.step()
+            actor_loss, critic_loss = optimizer.learn()
 
             score += rewards                                   # update the score (for each agent)            
 
@@ -129,10 +134,7 @@ def maddpg_train():
             
             states = next_states                               # roll over states to next time step
 
-            steps += 1                        
-
-        actor_model.checkpoint(CHECKPOINT_ACTOR)
-        critic_model.checkpoint(CHECKPOINT_CRITIC)
+            steps += 1                                
 
         scores.append(np.max(score))
         scores_window.append(np.max(score))
@@ -144,6 +146,9 @@ def maddpg_train():
         if np.mean(scores_window) >= 2000:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
             break    
+    
+    actor_model.checkpoint(CHECKPOINT_ACTOR)
+    critic_model.checkpoint(CHECKPOINT_CRITIC)
 
 
 # train the agent

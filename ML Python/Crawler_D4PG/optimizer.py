@@ -57,7 +57,8 @@ class Optimizer:
             return self.actor_loss, self.critic_loss 
         
         for _ in range(10):
-            experiences = self.memory.sample()
+            # experiences = self.memory.sample()
+            experiences, importance, sample_indices = self.memory.sample()
 
             states      = []
             actions     = []
@@ -72,23 +73,27 @@ class Optimizer:
                 next_states.append( exp['next_state'] )
                 dones.append      ( exp['done']       )
 
-            states      = torch.from_numpy( np.array(states)                                ).float().to(self.DEVICE)
-            actions     = torch.from_numpy( np.array(actions)                               ).float().to(self.DEVICE)
-            rewards     = torch.from_numpy( np.array(rewards).reshape(-1, 1)                ).float().to(self.DEVICE)
-            next_states = torch.from_numpy( np.array(next_states)                           ).float().to(self.DEVICE)
-            dones       = torch.from_numpy( np.array(dones).astype(np.uint8).reshape(-1, 1) ).float().to(self.DEVICE)
+            states      = torch.from_numpy( np.array(states)                 ).float().to(self.DEVICE)
+            actions     = torch.from_numpy( np.array(actions)                ).float().to(self.DEVICE)
+            rewards     = torch.from_numpy( np.array(rewards)                ).float().to(self.DEVICE)
+            next_states = torch.from_numpy( np.array(next_states)            ).float().to(self.DEVICE)
+            dones       = torch.from_numpy( np.array(dones).astype(np.uint8) ).float().to(self.DEVICE)
+            importance  = torch.from_numpy( np.array(importance)             ).float().to(self.DEVICE)
                             
 
             # ---------------------------- update critic ---------------------------- #
             # Get predicted next-state actions and Q values from target models
             actions_next = self.actor_target(next_states)
             # Q_targets = self.critic_target_model(states, actions)
-            Q_targets_next = self.critic_target(next_states, actions_next)
+            Q_targets_next = self.critic_target(next_states, actions_next).squeeze()
             # Compute Q targets for current states (y_i)
             Q_targets = rewards + (self.GAMMA * Q_targets_next * (1 - dones))
             # Compute critic loss
-            Q_expected = self.critic_model(states, actions)
-            critic_loss = F.mse_loss(Q_expected, Q_targets)
+            Q_expected = self.critic_model(states, actions).squeeze()
+            # critic_loss = F.mse_loss(Q_expected, Q_targets)
+            loss = Q_expected - Q_targets
+            loss = ( loss ** 2) * importance
+            critic_loss = loss.mean()
             # Minimize the loss
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
@@ -106,11 +111,14 @@ class Optimizer:
             actor_loss.backward()
             self.actor_optimizer.step()    
 
-            self.actor_loss = actor_loss.data
+            self.actor_loss = actor_loss.data        
 
             # ----------------------- update target networks ----------------------- #
             self.soft_update(self.critic_model, self.critic_target)
             self.soft_update(self.actor_model, self.actor_target)    
+
+            # ----------------------- update memory priorities --------------------- #
+            self.memory.set_priorities(sample_indices, loss.cpu().data.numpy())
 
             return self.actor_loss, self.critic_loss
 

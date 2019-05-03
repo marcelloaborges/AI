@@ -1,17 +1,10 @@
 import numpy as np
 import random
 
-class ReplayMemory:
+class SimpleMemory:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, keys):
-        """Initialize a ReplayMemory object.
-        Params
-        ======
-            buffer_size (int): maximum size of buffer
-            batch_size (int): size of each training batch
-        """             
-
+    def __init__(self, keys): 
         self.KEYS = keys
 
         self._reset_memory()
