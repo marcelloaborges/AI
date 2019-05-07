@@ -15,13 +15,14 @@ class SimpleMemory:
         for key in self.KEYS:
             self.memory[key] = []
     
-    def add(self, key, state, action, log_prob, reward):
+    def add(self, key, state, action, log_prob, reward, value):
         """Add a new experience to memory."""            
         e = {
             "state" : state,
             "action" : action,
             "log_prob" : log_prob,
-            "reward" : reward
+            "reward" : reward, 
+            "value" : value
         }
         self.memory[key].append(e)
     

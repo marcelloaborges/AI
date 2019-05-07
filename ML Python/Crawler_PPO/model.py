@@ -12,7 +12,7 @@ def layer_init(layer, w_scale=1.0):
 
 class ActorCriticModel(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1_units=512, fc2_units=256):
+    def __init__(self, state_size, action_size, fc1_units=1024, fc2_units=512):
 
         super(ActorCriticModel, self).__init__()
 

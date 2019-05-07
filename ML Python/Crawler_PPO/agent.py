@@ -26,15 +26,16 @@ class Agent:
 
         self.actor_critic_model.eval()
         with torch.no_grad():
-            action, log_prob, _, _ = self.actor_critic_model(state)            
+            action, log_prob, _, value = self.actor_critic_model(state)            
         self.actor_critic_model.train()
 
         action = action.cpu().data.numpy()
         log_prob = log_prob.cpu().data.numpy()
+        value = value.cpu().data.numpy()
     
-        return np.clip(action, -1, 1), log_prob
+        return action, log_prob, value
 
-    def step(self, keys, states, actions, log_probs, rewards):
+    def step(self, keys, states, actions, log_probs, rewards, values):
         # Save experience / reward        
         for i, key in enumerate(keys):
             self.shared_memory.add( 
@@ -42,5 +43,6 @@ class Agent:
                 states[i],
                 actions[i],
                 log_probs[i],
-                rewards[i]
+                np.array( rewards ).reshape( -1, 1 )[i],
+                values[i]
             )

@@ -38,15 +38,16 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 16
-BUFFER_SIZE = int(1e5)
-BATCH_SIZE = 128
+N_STEP = 128
 GAMMA = 0.99            # discount factor
-TAU = 2e-1              # for soft update of target parameters
-LR = 1e-4               # learning rate of the critic
+BATCH_SIZE = 32
+EPSILON = 0.1
+ENTROPY_WEIGHT = 0.001
+GRADIENT_CLIP = 0.5
+LR = 3e-4               # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
-MODE = False
+MODE = True
 
 CHECKPOINT = './checkpoint.pth'
 
@@ -62,13 +63,12 @@ actor_critic_model.load(CHECKPOINT)
 agent = Agent(DEVICE, actor_critic_model, shared_memory)
 
 optimizer = Optimizer(DEVICE, 
-    actor_model, actor_target, actor_optimizer, 
-    critic_model, critic_target, critic_optimizer, 
+    actor_critic_model, actor_critic_optimizer, 
     shared_memory, 
-    GAMMA, TAU)
+    N_STEP, GAMMA, BATCH_SIZE, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
 
 
-def maddpg_train():
+def ppo_train():
     n_episodes = 10000
     scores = []
     scores_window = deque(maxlen=100)
@@ -83,7 +83,7 @@ def maddpg_train():
         steps = 0
 
         while True:
-            actions, log_probs = agent.act( states )
+            actions, log_probs, values = agent.act( states )
             
             env_info = env.step(actions)[brain_name]           # send all actions to tne environment
             next_states = env_info.vector_observations         # get next state (for each agent)
@@ -95,10 +95,11 @@ def maddpg_train():
                 states,
                 actions,
                 log_probs,
-                rewards
+                rewards,
+                values
             )            
 
-            loss = optimizer.learn()
+            loss = optimizer.step()
 
             score += rewards                                   # update the score (for each agent)            
 
@@ -123,7 +124,7 @@ def maddpg_train():
 
 
 # train the agent
-maddpg_train()
+ppo_train()
 
 
 n_episodes = 50
@@ -141,7 +142,7 @@ for episode in range(n_episodes):
         # n_actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
         # n_actions = np.clip(n_actions, -1, 1)                  # all actions between -1 and 1
         actions = []
-        actions = agent.act( states ) 
+        actions, _, _ = agent.act( states ) 
         # actions = np.stack( actions, axis=0 )
 
         env_info = env.step(actions)[brain_name]           # send all actions to tne environment
