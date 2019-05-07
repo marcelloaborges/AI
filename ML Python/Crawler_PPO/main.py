@@ -38,7 +38,7 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 128
+N_STEP = 8
 GAMMA = 0.99            # discount factor
 BATCH_SIZE = 32
 EPSILON = 0.1

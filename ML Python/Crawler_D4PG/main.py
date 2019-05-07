@@ -45,8 +45,8 @@ print('There are {} agents. Each observes a state with length: {}'.format(states
 print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
-N_STEP = 1
-BUFFER_SIZE = int(1e5)
+N_STEP = 8
+BUFFER_SIZE = int(1e6)
 BATCH_SIZE = 128
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
@@ -55,7 +55,7 @@ LR_CRITIC = 3e-5        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
-MODE = False
+MODE = True
 
 CHECKPOINT_ACTOR = './checkpoint_actor.pth'
 CHECKPOINT_CRITIC = './checkpoint_critic.pth'

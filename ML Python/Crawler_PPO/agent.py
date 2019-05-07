@@ -33,7 +33,7 @@ class Agent:
         log_prob = log_prob.cpu().data.numpy()
         value = value.cpu().data.numpy()
     
-        return action, log_prob, value
+        return np.clip( action, -1, 1 ), log_prob, value
 
     def step(self, keys, states, actions, log_probs, rewards, values):
         # Save experience / reward        

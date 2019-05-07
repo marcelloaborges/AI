@@ -68,15 +68,17 @@ class CriticModel(nn.Module):
 
     def forward(self, state, action):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""        
-        xs = self.fcs1( state )
-        x =  self.bns1(   xs  )
-        x =  F.relu   (   x   )
-        x = torch.cat ( (xs, action), dim=1 )
-        x = self.fc2  (   x   )
-        x = self.bn2  (   x   )
-        x = F.relu    (   x   )
+        xs = self.fcs1  ( state )
+        x =  self.bns1  (   xs  )
+        x =  F.relu     (   x   )
+        x = torch.cat   ( (xs, action), dim=1 )
+        x = self.fc2    (   x   )
+        x = self.bn2    (   x   )
+        x = F.relu      (   x   )
+        x = self.fc_out (   x   )
+        # x = F.softplus  (   x   )
 
-        return self.fc_out(x)
+        return x
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):
