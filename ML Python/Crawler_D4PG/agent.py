@@ -10,20 +10,24 @@ from replay_memory import ReplayMemory
 class Agent:
 
     def __init__(self, 
-        device,        
-        actor_model,
-        local_memory,
+        device,
+        agent_keys,
+        actor_model,  
+        local_memory,       
         shared_memory,
-        noise,
-        gamma,
-        n_step):
+        noise,        
+        n_step,
+        gamma):
 
         self.DEVICE = device
+
+        # agents
+        self.KEYS = agent_keys
 
         # Actor Network
         self.actor_model = actor_model
 
-        # Replay memory        
+        # Replay memory
         self.local_memory = local_memory
         self.shared_memory = shared_memory
 
@@ -31,8 +35,8 @@ class Agent:
         self.noise = noise        
 
         # Hyperparameters
-        self.GAMMA = gamma
         self.N_STEP = n_step    
+        self.GAMMA = gamma        
 
         self.t_step = 0 
         
@@ -50,21 +54,22 @@ class Agent:
     
         return np.clip(action, -1, 1)
 
-    def step(self, keys, state, action, reward, next_state, done):
+    def step(self, states, actions, rewards, next_states, dones):
         # Save experience / reward        
-        for i, key in enumerate(keys):
+        for key in self.KEYS:
             self.local_memory.add( 
                 key,
-                state[i],
-                action[i],
-                np.array( reward[i] ),
-                next_state[i],
-                np.array( done[i] )
+                states[key],
+                actions[key],
+                np.array( rewards[key] ),
+                next_states[key],
+                np.array( dones[key] )
             )
 
         self.t_step = (self.t_step + 1) % self.N_STEP  
         if self.t_step == 0:            
-            experiences = self.local_memory.sample()                    
+
+            experiences = self.local_memory.sample()
 
             for key, experience in experiences.items():
 
@@ -89,7 +94,8 @@ class Agent:
                 rewards.extend( temp_reward )
                 
                 for i in range(len(states)):
-                    self.shared_memory.add(                        
+                    self.shared_memory.add(   
+                        key,                     
                         states[i],
                         actions[i],
                         rewards[i],

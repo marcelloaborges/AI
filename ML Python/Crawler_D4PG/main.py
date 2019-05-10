@@ -46,16 +46,16 @@ print('The state for the first agent looks like:', states[0])
 
 # hyperparameters
 N_STEP = 8
-BUFFER_SIZE = int(1e6)
+BUFFER_SIZE = int(1e5)
 BATCH_SIZE = 128
 GAMMA = 0.99            # discount factor
 TAU = 2e-1              # for soft update of target parameters
-LR_ACTOR = 1e-5         # learning rate of the actor 
-LR_CRITIC = 3e-5        # learning rate of the critic
+LR_ACTOR = 5e-5         # learning rate of the actor 
+LR_CRITIC = 1e-4        # learning rate of the critic
 WEIGHT_DECAY = 0.995    # L2 weight decay
 
 ADD_NOISE = True
-MODE = True
+TRAIN = False
 
 CHECKPOINT_ACTOR = './checkpoint_actor.pth'
 CHECKPOINT_CRITIC = './checkpoint_critic.pth'
@@ -64,16 +64,18 @@ agent_keys = np.arange( 0, num_agents )
 
 local_memory = SimpleMemory(agent_keys)
 # shared_memory = ReplayMemory(BUFFER_SIZE, BATCH_SIZE)
-shared_memory = PrioritizedReplayMemory(BUFFER_SIZE, BATCH_SIZE)
+shared_memory = PrioritizedReplayMemory(agent_keys, BUFFER_SIZE, BATCH_SIZE)
 noise = OUNoise(action_size)
 
 actor_model = ActorModel(state_size, action_size).to(DEVICE)
 actor_target = ActorModel(state_size, action_size).to(DEVICE)
-actor_optimizer = optim.Adam(actor_model.parameters(), lr=LR_ACTOR)
+actor_optimizer = optim.Adam(actor_model.parameters(), lr=LR_ACTOR, weight_decay=WEIGHT_DECAY)
+# actor_optimizer = optim.SGD(actor_model.parameters(), lr=LR_ACTOR, momentum=0.9)
 
 critic_model = CriticModel(state_size, action_size).to(DEVICE)
 critic_target = CriticModel(state_size, action_size).to(DEVICE)
-critic_optimizer = optim.Adam(critic_model.parameters(), lr=LR_CRITIC)
+critic_optimizer = optim.Adam(critic_model.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
+# critic_optimizer = optim.SGD(actor_model.parameters(), lr=LR_CRITIC, momentum=0.9)
 
 
 actor_model.load(CHECKPOINT_ACTOR)
@@ -83,13 +85,13 @@ critic_model.load(CHECKPOINT_CRITIC)
 critic_target.load(CHECKPOINT_CRITIC)
 
 
-agent = Agent(DEVICE, actor_model, local_memory, shared_memory, noise, GAMMA, N_STEP)
+agent = Agent(DEVICE, agent_keys, actor_model, local_memory, shared_memory, noise, N_STEP, GAMMA)
 
-optimizer = Optimizer(DEVICE, 
+optimizer = Optimizer(DEVICE, agent_keys,
     actor_model, actor_target, actor_optimizer, 
     critic_model, critic_target, critic_optimizer, 
     shared_memory, 
-    GAMMA, TAU)
+    N_STEP, GAMMA, TAU)
 
 
 def maddpg_train():
@@ -98,7 +100,7 @@ def maddpg_train():
     scores_window = deque(maxlen=100)
 
     for episode in range(n_episodes):
-        env_info = env.reset(train_mode=MODE)[brain_name]     # reset the environment    
+        env_info = env.reset(train_mode=TRAIN)[brain_name]    # reset the environment    
         states = env_info.vector_observations                 # get the current state (for each agent)
                 
         agent.reset()    
@@ -117,16 +119,21 @@ def maddpg_train():
             rewards = env_info.rewards                         # get reward (for each agent)
             dones = env_info.local_done                        # see if episode finished            
                         
-            agent.step( 
-                agent_keys,
-                states,
-                actions,
-                rewards,
-                next_states,
-                dones
+            k_states      = dict( zip(agent_keys, states) )
+            k_actions     = dict( zip(agent_keys, actions) )
+            k_rewards     = dict( zip(agent_keys, rewards) )
+            k_next_states = dict( zip(agent_keys, next_states) )
+            k_dones       = dict( zip(agent_keys, dones) )
+
+            agent.step(                 
+                k_states,
+                k_actions,
+                k_rewards,
+                k_next_states,
+                k_dones
             )            
 
-            actor_loss, critic_loss = optimizer.learn()
+            actor_loss, critic_loss = optimizer.step()
 
             score += rewards                                   # update the score (for each agent)            
 
@@ -170,9 +177,7 @@ for episode in range(n_episodes):
     while True:
         # n_actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
         # n_actions = np.clip(n_actions, -1, 1)                  # all actions between -1 and 1
-        actions = []
         actions = agent.act( states ) 
-        # actions = np.stack( actions, axis=0 )
 
         env_info = env.step(actions)[brain_name]           # send all actions to tne environment
         next_states = env_info.vector_observations         # get next state (for each agent)
