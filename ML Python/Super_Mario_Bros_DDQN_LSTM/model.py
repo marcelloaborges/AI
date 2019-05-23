@@ -13,7 +13,7 @@ def layer_init(layer, w_scale=1.0):
 
 class CNNDDQN(nn.Module):
     def __init__(self, DEVICE, action_size, channels=3, img_rows=256, img_cols=240, 
-        lstm_units=512, lstm_layers=2, fc1_units=256):
+        gru_hidden_units=512, fc1_units=256):
         super(CNNDDQN, self).__init__() 
                    
         self.DEVICE = DEVICE
@@ -34,16 +34,16 @@ class CNNDDQN(nn.Module):
 
         self.state_size = 64 * 16 * 15                
 
-        # LSTM
+        # GRU
 
-        self.lstm_units = lstm_units
-        self.lstm_layers = lstm_layers
+        self.gru_hidden_units = gru_hidden_units
 
-        self.lstm = nn.LSTM( input_size=self.state_size, hidden_size=lstm_units, num_layers=lstm_layers )
+        self.gru_x2h = layer_init( nn.Linear( self.state_size, gru_hidden_units * 3 ) )
+        self.gru_h2h = layer_init( nn.Linear( gru_hidden_units, gru_hidden_units * 3 ) )
 
         # FC 512x256x7(1)
 
-        self.fc1 = layer_init( nn.Linear(lstm_units, fc1_units) )
+        self.fc1 = layer_init( nn.Linear(gru_hidden_units, fc1_units) )
 
         self.fc_actions = layer_init( nn.Linear(fc1_units, action_size) )
 
@@ -72,8 +72,22 @@ class CNNDDQN(nn.Module):
         # Flatten
         x = x.view( -1, 1, self.state_size )
 
-        out, hidden = self.lstm( x, hidden )
-        x = out        
+        # GRU    
+        gate_x = self.gru_x2h( x )
+        gate_h = self.gru_h2h( hidden )
+
+        # gate_x = gate_x.squeeze(0)
+        # gate_h = gate_h.squeeze(0)
+        
+        i_r, i_i, i_n = gate_x.chunk(3, 2)
+        h_r, h_i, h_n = gate_h.chunk(3, 2)
+                
+        resetgate = F.sigmoid( i_r + h_r )
+        inputgate = F.sigmoid( i_i + h_i )
+        newgate = F.tanh( i_n + ( resetgate * h_n ) )
+        
+        hy = newgate + inputgate * ( hidden - newgate )
+        x = hy
 
         # Actor
         x = F.relu( self.fc1(x) )
@@ -81,7 +95,7 @@ class CNNDDQN(nn.Module):
         actions = self.fc_actions(x)
         value = self.fc_value(x)
         
-        return value + actions - actions.mean(), hidden
+        return value + actions - actions.mean(), hy
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

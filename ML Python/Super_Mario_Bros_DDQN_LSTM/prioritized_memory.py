@@ -68,11 +68,11 @@ class PrioritizedMemory():
             dones.append       ( exp['done']        )
 
         states       = np.array(states)
-        # hiddens      = np.array(hiddens)
+        hiddens      = np.array(hiddens)
         actions      = np.array(actions)
         rewards      = np.array(rewards)
         next_states  = np.array(next_states)
-        # next_hiddens = np.array(next_hiddens)
+        next_hiddens = np.array(next_hiddens)
         dones        = np.array(dones)
         importance   = np.array(importance)
 

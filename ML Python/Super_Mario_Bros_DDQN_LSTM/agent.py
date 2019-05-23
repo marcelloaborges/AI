@@ -20,7 +20,7 @@ class Agent:
 
     def act(self, state, hidden, eps=0.):
         state = torch.from_numpy( state.T.copy() ).float().unsqueeze(0).to(self.DEVICE)        
-        hidden = tuple([ torch.from_numpy( hc ).float().to(self.DEVICE) for hc in hidden])
+        hidden = torch.from_numpy( hidden ).float().to(self.DEVICE)
 
         self.model.eval()
         with torch.no_grad():
@@ -33,9 +33,6 @@ class Agent:
         else:
             action = np.argmax(action_values.cpu().data.numpy())
           
-        hidden = (
-            hidden[0].cpu().data.numpy(),
-            hidden[1].cpu().data.numpy()
-        )
+        hidden = hidden.cpu().data.numpy()
         
         return action, hidden

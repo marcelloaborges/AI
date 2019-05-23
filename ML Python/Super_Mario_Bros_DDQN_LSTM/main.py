@@ -39,15 +39,14 @@ BATCH_SIZE = 128
 LR = 1e-4
 EPSILON = 0.1
 
-LSTM_UNITS = 512
-LSTM_LAYERS = 1
+GRU_HIDDEN_UNITS = 512
 FC1_UNITS = 256
 
 CHECKPOINT = './checkpoint.pth'
 
 
-model = CNNDDQN( DEVICE, action_size, lstm_units=LSTM_UNITS, lstm_layers=LSTM_LAYERS, fc1_units=FC1_UNITS ).to(DEVICE)
-target_model = CNNDDQN( DEVICE, action_size, lstm_units=LSTM_UNITS, lstm_layers=LSTM_LAYERS, fc1_units=FC1_UNITS ).to(DEVICE)
+model = CNNDDQN( DEVICE, action_size, gru_hidden_units=GRU_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
+target_model = CNNDDQN( DEVICE, action_size, gru_hidden_units=GRU_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
 adam = optim.Adam( model.parameters(), lr=LR )
 
 if os.path.isfile(CHECKPOINT):
@@ -69,10 +68,7 @@ for episode in range(n_episodes):
     total_reward = 0
 
     state = env.reset()
-    hidden = (
-        np.zeros( [LSTM_LAYERS, 1, LSTM_UNITS] ),
-        np.zeros( [LSTM_LAYERS, 1, LSTM_UNITS] )
-    )
+    hidden = np.zeros( [1, 1, GRU_HIDDEN_UNITS] )
 
     # while True:
     for t in range(t_steps):
@@ -81,10 +77,10 @@ for episode in range(n_episodes):
         action, next_hidden = agent.act( state, hidden, EPSILON )
 
         next_state, reward, done, info = env.step(action)
-
+ 
         loss = optimizer.step(state, hidden, action, reward, next_state, next_hidden, done)
 
-        # env.render()
+        env.render()
 
         total_reward += reward
 

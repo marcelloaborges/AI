@@ -40,7 +40,7 @@ class Optimizer:
         self.loss = 0      
 
     def step(self, state, hidden, action, reward, next_state, next_hidden, done):
-        self.memory.add( state.T, hidden, action, reward, next_state.T, next_hidden, done )
+        self.memory.add( state.T, hidden.squeeze(0), action, reward, next_state.T, next_hidden.squeeze(0), done )
 
          # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
@@ -63,25 +63,20 @@ class Optimizer:
         dones        = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE) # .squeeze(1)       
         importance   = torch.from_numpy( importance             ).float().to(self.DEVICE) 
 
-        hiddens      = [ tuple( [ torch.from_numpy( hc ).float().to(self.DEVICE)  for hc in hidden       ] ) for hidden in hiddens ]
-        next_hiddens = [ tuple( [ torch.from_numpy( nhc ).float().to(self.DEVICE) for nhc in next_hidden ] ) for next_hidden in next_hiddens ]
+        hiddens      = torch.from_numpy( hiddens ).float().to(self.DEVICE)
+        next_hiddens = torch.from_numpy( next_hiddens ).float().to(self.DEVICE)
 
-        losses = []
-        for i in range(len(states)):
+        Q_targets_next, _ = self.target_model(next_states, next_hiddens)
+        Q_targets_next = Q_targets_next.detach().max(2)[0].squeeze()
+        Q_target = self.ALPHA * (rewards + self.GAMMA * Q_targets_next * (1 - dones))
 
-            Q_targets_next, _ = self.target_model(next_states[i].unsqueeze(0), next_hiddens[i])
-            Q_targets_next = Q_targets_next.detach().max(2)[0].squeeze(0)
-            Q_target = self.ALPHA * (rewards[i] + self.GAMMA * Q_targets_next * (1 - dones[i]))            
-
-            Q_value, _ = self.model(states[i].unsqueeze(0), hiddens[i])
-            Q_value = Q_value.squeeze(0).squeeze(0).gather(0, actions.unsqueeze(1)[i])
-                    
-            # loss = F.smooth_l1_loss(Q_value, Q_target)
-            loss = Q_value - Q_target
-            loss = ( loss ** 2 ) * importance[i]
-            losses.append(loss)
-        
-        q_loss = torch.stack( losses ).mean()
+        Q_value, _ = self.model(states, hiddens)
+        Q_value = Q_value.squeeze().gather(1, actions.unsqueeze(1))
+                
+        # loss = F.smooth_l1_loss(Q_value, Q_target)
+        loss = Q_value.squeeze() - Q_target
+        loss = ( loss ** 2 ) * importance
+        q_loss = loss.mean()
 
         # Minimize the loss
         self.optimizer.zero_grad()
