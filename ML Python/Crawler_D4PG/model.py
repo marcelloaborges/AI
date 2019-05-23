@@ -25,6 +25,7 @@ class ActorModel(nn.Module):
         super(ActorModel, self).__init__()        
         
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
+        self.dout1 = nn.Dropout(0.2)
         # self.bn1 = nn.BatchNorm1d( fc1_units )
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
         # self.bn2 = nn.BatchNorm1d( fc2_units )
@@ -34,6 +35,7 @@ class ActorModel(nn.Module):
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""        
         x = self.fc1   ( state )
+        x = self.dout1 (   x   )
         # x = self.bn1   (   x   )
         x = F.relu     (   x   )        
         x = self.fc2   (   x   )        
@@ -60,6 +62,7 @@ class CriticModel(nn.Module):
         super(CriticModel, self).__init__()        
 
         self.fcs1 = layer_init( nn.Linear(state_size, fcs1_units) )
+        self.dout1 = nn.Dropout(0.2)
         # self.bns1 = nn.BatchNorm1d( fcs1_units )
         self.fc2 = layer_init( nn.Linear(fcs1_units + action_size, fc2_units) )
         # self.bn2 = nn.BatchNorm1d( fc2_units )
@@ -69,8 +72,9 @@ class CriticModel(nn.Module):
     def forward(self, state, action):
         """Build a critic (value) network that maps (state, action) pairs -> Q-values."""        
         xs = self.fcs1  ( state )
+        xs = self.dout1 (   xs  )
         # x =  self.bns1  (   xs  )
-        x =  F.relu     (   xs   )
+        x =  F.relu     (   xs  )
         x = torch.cat   ( (x, action), dim=1 )
         x = self.fc2    (   x   )
         # x = self.bn2    (   x   )

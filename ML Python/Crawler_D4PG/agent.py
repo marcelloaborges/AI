@@ -94,8 +94,7 @@ class Agent:
                 rewards.extend( temp_reward )
                 
                 for i in range(len(states)):
-                    self.shared_memory.add(   
-                        key,                     
+                    self.shared_memory.add(                                                
                         states[i],
                         actions[i],
                         rewards[i],

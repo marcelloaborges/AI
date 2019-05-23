@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-env = UnityEnvironment(file_name="Banana_Windows_x86_64/Banana.exe", no_graphics=False)
+env = UnityEnvironment(file_name="../Environments/Banana_Windows_x86_64/Banana.exe", no_graphics=False)
 
 # get the default brain
 brain_name = env.brain_names[0]
