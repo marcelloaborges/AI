@@ -33,14 +33,14 @@ print('actions len {}'.format(action_size))
 ALPHA = 1
 GAMMA = 0.9
 TAU = 1e-4
-UPDATE_EVERY = 4
+UPDATE_EVERY = 1
 BUFFER_SIZE = int(1e4)
-BATCH_SIZE = 128
-LR = 1e-4
+BATCH_SIZE = 64
+LR = 1e-5
 EPSILON = 0.
 
 LSTM_HIDDEN_UNITS = 512
-FC1_UNITS = 512
+FC1_UNITS = 256
 
 CHECKPOINT = './checkpoint.pth'
 
@@ -66,6 +66,7 @@ n_episodes = 1000
 for episode in range(n_episodes):
 
     total_reward = 0
+    t_step = 0
     life = 2
 
     state = env.reset()
@@ -73,26 +74,28 @@ for episode in range(n_episodes):
     cx = np.zeros( [1, 1, LSTM_HIDDEN_UNITS] )
 
     # while True:
-    for t in range(t_steps):
+    for _ in range(t_steps):
+        t_step += 1        
 
         # action = env.action_space.sample()
         action, nhx, ncx = agent.act( state, hx, cx, EPSILON )
 
         next_state, reward, done, info = env.step(action)        
  
-        loss = optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
+        loss = 0 # optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
 
         env.render()
 
         total_reward += reward
 
-        print('\rEpisode: {} \tT_step: \t{} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.10f}'.format( episode + 1, t, total_reward, reward, life, loss ), end='')
+        print('\rEpisode: {} \tT_step: \t{} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.10f}'.format( episode + 1, t_step, total_reward, reward, life, loss ), end='')
 
         if done:
             break
 
         if info['life'] < life:
             total_reward = 0
+            t_step = 0
             life = info['life']
 
         state = next_state

@@ -20,19 +20,19 @@ class CNNDDQN(nn.Module):
             
         # CONV
 
-        self.conv1 = nn.Conv2d( channels, 8, kernel_size=7, stride=1, padding=3 )
+        self.conv1 = nn.Conv2d( channels, 32, kernel_size=7, stride=1, padding=3 )
         self.pool1 = nn.MaxPool2d( kernel_size=2 )
 
-        self.conv2 = nn.Conv2d( 8, 16, kernel_size=5, stride=1, padding=2 )
+        self.conv2 = nn.Conv2d( 32, 32, kernel_size=5, stride=1, padding=2 )
         self.pool2 = nn.MaxPool2d( kernel_size=2 )
 
-        self.conv3 = nn.Conv2d( 16, 32, kernel_size=5, stride=1, padding=2 )
+        self.conv3 = nn.Conv2d( 32, 32, kernel_size=5, stride=1, padding=2 )
         self.pool3 = nn.MaxPool2d( kernel_size=2 )
 
-        self.conv4 = nn.Conv2d( 32, 64, kernel_size=3, stride=1, padding=1 )
+        self.conv4 = nn.Conv2d( 32, 32, kernel_size=3, stride=1, padding=1 )
         self.pool4 = nn.MaxPool2d( kernel_size=2 )
 
-        self.state_size = 64 * 16 * 15                
+        self.state_size = 32 * 16 * 15                
 
         # LSTM
 
@@ -70,9 +70,7 @@ class CNNDDQN(nn.Module):
 
         # LSTM
         gates = self.lstm_x2h(x) + self.lstm_h2h(hx)
-    
-        # gates = gates.squeeze()
-        
+            
         ingate, forgetgate, cellgate, outgate = gates.chunk(4, 2)
         
         ingate = F.sigmoid(ingate)

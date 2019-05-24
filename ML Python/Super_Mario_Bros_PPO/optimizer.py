@@ -43,8 +43,8 @@ class Optimizer:
         self.t_step = 0 
         self.loss = 0      
 
-    def step(self, state, action, log_prob, reward):
-        self.memory.add( state.T, action, log_prob, reward )
+    def step(self, state, hx, cx, action, log_prob, reward):
+        self.memory.add( state.T, hx.squeeze(0), cx.squeeze(0), action, log_prob, reward )
 
         self.t_step = (self.t_step + 1) % self.N_STEP
         if self.t_step == 0:
@@ -54,7 +54,7 @@ class Optimizer:
 
         
     def _learn(self):                    
-        states, actions, log_probs, rewards, n_exp = self.memory.experiences()
+        states, hxs, cxs, actions, log_probs, rewards, n_exp = self.memory.experiences()
 
 
         discount = self.GAMMA**np.arange(n_exp)
@@ -63,6 +63,10 @@ class Optimizer:
 
 
         states = torch.from_numpy(states).float().to(self.DEVICE)
+
+        hxs = torch.from_numpy(hxs).float().to(self.DEVICE)
+        cxs = torch.from_numpy(cxs).float().to(self.DEVICE)
+
         actions = torch.from_numpy(actions).long().to(self.DEVICE).squeeze(1)
         log_probs = torch.from_numpy(log_probs).float().to(self.DEVICE).squeeze(1)
         rewards = torch.from_numpy(rewards_future.copy()).float().to(self.DEVICE)
@@ -70,7 +74,7 @@ class Optimizer:
 
         self.model.eval()
         with torch.no_grad():
-            _, _, _, values = self.model( states )
+            _, _, _, values, _, _ = self.model( states, hxs, cxs )
             values = values.detach()
         self.model.train()
                         
@@ -85,16 +89,18 @@ class Optimizer:
             batch_indices = torch.tensor(batch_indices).long().to(self.DEVICE)
 
             sampled_states = states[batch_indices]
+            sampled_hxs = hxs[batch_indices]
+            sampled_cxs = cxs[batch_indices]
             sampled_actions = actions[batch_indices]
             sampled_log_probs = log_probs[batch_indices]
             sampled_rewards = rewards[batch_indices]
             sampled_advantages = advantages_normalized[batch_indices]            
 
 
-            _, new_log_probs, entropies, values = self.model(sampled_states, sampled_actions)
+            _, new_log_probs, entropies, values, _, _ = self.model(sampled_states, sampled_hxs, sampled_cxs, sampled_actions.unsqueeze(1))
 
 
-            ratio = ( new_log_probs - sampled_log_probs ).exp()
+            ratio = ( new_log_probs.squeeze() - sampled_log_probs ).exp()
 
             clip = torch.clamp( ratio, 1 - self.EPSILON, 1 + self.EPSILON )
 
@@ -104,7 +110,7 @@ class Optimizer:
             entropy = torch.mean(entropies)
 
 
-            value_loss = F.mse_loss( sampled_rewards, values.squeeze(1) )
+            value_loss = F.mse_loss( sampled_rewards, values.squeeze() )
 
 
             loss = policy_loss + (0.5 * value_loss) - (entropy * self.ENTROPY_WEIGHT)  
