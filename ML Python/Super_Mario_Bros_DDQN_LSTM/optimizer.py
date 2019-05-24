@@ -39,8 +39,10 @@ class Optimizer:
         self.t_step = 0 
         self.loss = 0      
 
-    def step(self, state, hidden, action, reward, next_state, next_hidden, done):
-        self.memory.add( state.T, hidden.squeeze(0), action, reward, next_state.T, next_hidden.squeeze(0), done )
+    def step(self, state, hx, cx, action, reward, next_state, nhx, ncx, done):
+        self.memory.add( 
+            state.T, hx.squeeze(0), cx.squeeze(0), action, reward, next_state.T, nhx.squeeze(0), ncx.squeeze(0), done 
+            )
 
          # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
@@ -53,7 +55,7 @@ class Optimizer:
 
         
     def _learn(self):                    
-        states, hiddens, actions, rewards, next_states, next_hiddens, dones, importance, sample_indices = self.memory.sample()
+        states, hxs, cxs, actions, rewards, next_states, nhxs, ncxs, dones, importance, sample_indices = self.memory.sample()
 
 
         states       = torch.from_numpy( states                 ).float().to(self.DEVICE)           
@@ -63,14 +65,16 @@ class Optimizer:
         dones        = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE) # .squeeze(1)       
         importance   = torch.from_numpy( importance             ).float().to(self.DEVICE) 
 
-        hiddens      = torch.from_numpy( hiddens ).float().to(self.DEVICE)
-        next_hiddens = torch.from_numpy( next_hiddens ).float().to(self.DEVICE)
+        hxs          = torch.from_numpy( hxs                    ).float().to(self.DEVICE)
+        cxs          = torch.from_numpy( cxs                    ).float().to(self.DEVICE)
+        nhxs         = torch.from_numpy( nhxs                   ).float().to(self.DEVICE)
+        ncxs         = torch.from_numpy( ncxs                   ).float().to(self.DEVICE)
 
-        Q_targets_next, _ = self.target_model(next_states, next_hiddens)
+        Q_targets_next, _, _ = self.target_model(next_states, nhxs, ncxs)
         Q_targets_next = Q_targets_next.detach().max(2)[0].squeeze()
         Q_target = self.ALPHA * (rewards + self.GAMMA * Q_targets_next * (1 - dones))
 
-        Q_value, _ = self.model(states, hiddens)
+        Q_value, _, _ = self.model(states, hxs, cxs)
         Q_value = Q_value.squeeze().gather(1, actions.unsqueeze(1))
                 
         # loss = F.smooth_l1_loss(Q_value, Q_target)

@@ -13,7 +13,7 @@ def layer_init(layer, w_scale=1.0):
 
 class CNNDDQN(nn.Module):
     def __init__(self, DEVICE, action_size, channels=3, img_rows=256, img_cols=240, 
-        gru_hidden_units=512, fc1_units=256):
+        lstm_hidden_units=512, fc1_units=256):
         super(CNNDDQN, self).__init__() 
                    
         self.DEVICE = DEVICE
@@ -34,28 +34,24 @@ class CNNDDQN(nn.Module):
 
         self.state_size = 64 * 16 * 15                
 
-        # GRU
+        # LSTM
 
-        self.gru_hidden_units = gru_hidden_units
+        self.lstm_hidden_units = lstm_hidden_units
 
-        self.gru_x2h = layer_init( nn.Linear( self.state_size, gru_hidden_units * 3 ) )
-        self.gru_h2h = layer_init( nn.Linear( gru_hidden_units, gru_hidden_units * 3 ) )
+        self.lstm_x2h = layer_init( nn.Linear( self.state_size, lstm_hidden_units * 4 ) )
+        self.lstm_h2h = layer_init( nn.Linear( lstm_hidden_units, lstm_hidden_units * 4 ) )
 
         # FC 512x256x7(1)
 
-        self.fc1 = layer_init( nn.Linear(gru_hidden_units, fc1_units) )
+        self.fc1 = layer_init( nn.Linear(lstm_hidden_units, fc1_units) )
 
         self.fc_actions = layer_init( nn.Linear(fc1_units, action_size) )
 
         self.fc_value = layer_init( nn.Linear(fc1_units, 1) )
 
-    # def init_hidden(self, batch_size):
-    #     weight = next(self.lstm.parameters()).data
-    #     return (weight.new(self.lstm_layers, batch_size, self.lstm_units).zero_(),
-    #             weight.new(self.lstm_layers, batch_size, self.lstm_units).zero_())
 
 
-    def forward(self, state, hidden):
+    def forward(self, state, hx, cx):
         # Conv features
         x = F.relu( self.conv1(state) )
         x = self.pool1( x )
@@ -72,21 +68,21 @@ class CNNDDQN(nn.Module):
         # Flatten
         x = x.view( -1, 1, self.state_size )
 
-        # GRU    
-        gate_x = self.gru_x2h( x )
-        gate_h = self.gru_h2h( hidden )
+        # LSTM
+        gates = self.lstm_x2h(x) + self.lstm_h2h(hx)
+    
+        # gates = gates.squeeze()
+        
+        ingate, forgetgate, cellgate, outgate = gates.chunk(4, 2)
+        
+        ingate = F.sigmoid(ingate)
+        forgetgate = F.sigmoid(forgetgate)
+        cellgate = F.tanh(cellgate)
+        outgate = F.sigmoid(outgate)        
 
-        # gate_x = gate_x.squeeze(0)
-        # gate_h = gate_h.squeeze(0)
+        cy = torch.mul(cx, forgetgate) +  torch.mul(ingate, cellgate)        
+        hy = torch.mul(outgate, F.tanh(cy))
         
-        i_r, i_i, i_n = gate_x.chunk(3, 2)
-        h_r, h_i, h_n = gate_h.chunk(3, 2)
-                
-        resetgate = F.sigmoid( i_r + h_r )
-        inputgate = F.sigmoid( i_i + h_i )
-        newgate = F.tanh( i_n + ( resetgate * h_n ) )
-        
-        hy = newgate + inputgate * ( hidden - newgate )
         x = hy
 
         # Actor
@@ -95,7 +91,7 @@ class CNNDDQN(nn.Module):
         actions = self.fc_actions(x)
         value = self.fc_value(x)
         
-        return value + actions - actions.mean(), hy
+        return value + actions - actions.mean(), hy, cy
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

@@ -13,15 +13,17 @@ class PrioritizedMemory():
         self.memory = deque(maxlen=buffer_size)
         self.priorities = deque(maxlen=buffer_size)
         
-    def add(self, state, hidden, action, reward, next_state, next_hidden, done):
+    def add(self, state, hx, cx, action, reward, next_state, nhx, ncx, done):
         """Add a new experience to memory."""
         e = {
             "state" : state,
-            "hidden" : hidden,
+            "hx" : hx,
+            "cx" : cx,
             "action" : action,
             "reward" : reward,
             "next_state" : next_state,
-            "next_hidden" : next_hidden,
+            "nhx" : nhx,
+            "ncx" : ncx,
             "done" : done,
         }
 
@@ -51,32 +53,38 @@ class PrioritizedMemory():
         importance = self._get_importance( sample_probs[sample_indices] )
 
         states       = []
-        hiddens      = []
+        hxs          = []
+        cxs          = []
         actions      = []
         rewards      = []
         next_states  = []
-        next_hiddens = []
+        nhxs         = []
+        ncxs         = []
         dones        = []
 
         for exp in samples:                        
-            states.append      ( exp['state']       )
-            hiddens.append     ( exp['hidden']      )
-            actions.append     ( exp['action']      )
-            rewards.append     ( exp['reward']      )
-            next_states.append ( exp['next_state']  )
-            next_hiddens.append( exp['next_hidden'] )
-            dones.append       ( exp['done']        )
+            states.append     ( exp['state']      )
+            hxs.append        ( exp['hx']         )
+            cxs.append        ( exp['cx']         )
+            actions.append    ( exp['action']     )
+            rewards.append    ( exp['reward']     )
+            next_states.append( exp['next_state'] )
+            nhxs.append       ( exp['nhx']        )
+            ncxs.append       ( exp['ncx']        )
+            dones.append      ( exp['done']       )
 
         states       = np.array(states)
-        hiddens      = np.array(hiddens)
+        hxs          = np.array(hxs)
+        cxs          = np.array(cxs)
         actions      = np.array(actions)
         rewards      = np.array(rewards)
         next_states  = np.array(next_states)
-        next_hiddens = np.array(next_hiddens)
+        nhxs         = np.array(nhxs)
+        ncxs         = np.array(ncxs)
         dones        = np.array(dones)
         importance   = np.array(importance)
 
-        return states, hiddens, actions, rewards, next_states, next_hiddens, dones, importance, sample_indices
+        return states, hxs, cxs, actions, rewards, next_states, nhxs, ncxs, dones, importance, sample_indices
     
     def set_priorities(self, indices, errors, offset=0.1):
         for i, e in zip(indices, errors):

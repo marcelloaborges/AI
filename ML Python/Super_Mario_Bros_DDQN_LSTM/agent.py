@@ -18,13 +18,14 @@ class Agent:
 
         self.actions_size = actions_size
 
-    def act(self, state, hidden, eps=0.):
+    def act(self, state, hx, cx, eps=0.):
         state = torch.from_numpy( state.T.copy() ).float().unsqueeze(0).to(self.DEVICE)        
-        hidden = torch.from_numpy( hidden ).float().to(self.DEVICE)
+        hx = torch.from_numpy( hx ).float().to(self.DEVICE)
+        cx = torch.from_numpy( cx ).float().to(self.DEVICE)
 
         self.model.eval()
         with torch.no_grad():
-            action_values, hidden = self.model(state, hidden)
+            action_values, hx, cx = self.model(state, hx, cx)
         self.model.train()
                 
         action = None
@@ -33,6 +34,7 @@ class Agent:
         else:
             action = np.argmax(action_values.cpu().data.numpy())
           
-        hidden = hidden.cpu().data.numpy()
+        hx = hx.cpu().data.numpy()
+        cx = cx.cpu().data.numpy()
         
-        return action, hidden
+        return action, hx, cx

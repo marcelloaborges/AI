@@ -37,16 +37,16 @@ UPDATE_EVERY = 4
 BUFFER_SIZE = int(1e4)
 BATCH_SIZE = 128
 LR = 1e-4
-EPSILON = 0.1
+EPSILON = 0.
 
-GRU_HIDDEN_UNITS = 512
-FC1_UNITS = 256
+LSTM_HIDDEN_UNITS = 512
+FC1_UNITS = 512
 
 CHECKPOINT = './checkpoint.pth'
 
 
-model = CNNDDQN( DEVICE, action_size, gru_hidden_units=GRU_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
-target_model = CNNDDQN( DEVICE, action_size, gru_hidden_units=GRU_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
+model = CNNDDQN( DEVICE, action_size, lstm_hidden_units=LSTM_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
+target_model = CNNDDQN( DEVICE, action_size, lstm_hidden_units=LSTM_HIDDEN_UNITS, fc1_units=FC1_UNITS ).to(DEVICE)
 adam = optim.Adam( model.parameters(), lr=LR )
 
 if os.path.isfile(CHECKPOINT):
@@ -66,31 +66,38 @@ n_episodes = 1000
 for episode in range(n_episodes):
 
     total_reward = 0
+    life = 2
 
     state = env.reset()
-    hidden = np.zeros( [1, 1, GRU_HIDDEN_UNITS] )
+    hx = np.zeros( [1, 1, LSTM_HIDDEN_UNITS] )
+    cx = np.zeros( [1, 1, LSTM_HIDDEN_UNITS] )
 
     # while True:
     for t in range(t_steps):
 
         # action = env.action_space.sample()
-        action, next_hidden = agent.act( state, hidden, EPSILON )
+        action, nhx, ncx = agent.act( state, hx, cx, EPSILON )
 
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, done, info = env.step(action)        
  
-        loss = optimizer.step(state, hidden, action, reward, next_state, next_hidden, done)
+        loss = optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
 
         env.render()
 
         total_reward += reward
 
-        print('\rEpisode: {} \tT_step: \t{} \tTotal Reward: \t{} \tReward: \t{} \tLoss: \t{:.10f}'.format( episode + 1, t, total_reward, reward, loss ), end='')
+        print('\rEpisode: {} \tT_step: \t{} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.10f}'.format( episode + 1, t, total_reward, reward, life, loss ), end='')
 
         if done:
             break
 
+        if info['life'] < life:
+            total_reward = 0
+            life = info['life']
+
         state = next_state
-        hidden = next_hidden
+        hx = nhx
+        cx = ncx
 
     model.checkpoint(CHECKPOINT)
 
