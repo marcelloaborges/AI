@@ -16,19 +16,13 @@ class CNNLSTMActorCriticModel(nn.Module):
         super(CNNLSTMActorCriticModel, self).__init__() 
                    
         # CONV
-        self.conv1 = nn.Conv2d( channels, 32, kernel_size=7, stride=1, padding=3 )
-        self.pool1 = nn.MaxPool2d( kernel_size=2 )
 
-        self.conv2 = nn.Conv2d( 32, 32, kernel_size=5, stride=1, padding=2 )
-        self.pool2 = nn.MaxPool2d( kernel_size=2 )
+        self.conv1 = nn.Conv2d( channels, 32, kernel_size=3, stride=2, padding=1 ) # 256 => 128
+        self.conv2 = nn.Conv2d(       32, 32, kernel_size=3, stride=2, padding=1 ) # 128 => 64
+        self.conv3 = nn.Conv2d(       32, 32, kernel_size=3, stride=2, padding=1 ) # 64  => 32
+        self.conv4 = nn.Conv2d(       32, 32, kernel_size=3, stride=2, padding=1 ) # 32  => 16
 
-        self.conv3 = nn.Conv2d( 32, 32, kernel_size=5, stride=1, padding=2 )
-        self.pool3 = nn.MaxPool2d( kernel_size=2 )
-
-        self.conv4 = nn.Conv2d( 32, 32, kernel_size=3, stride=1, padding=1 )
-        self.pool4 = nn.MaxPool2d( kernel_size=2 )
-
-        self.state_size = 32 * 16 * 15                
+        self.state_size = 32 * 16 * 15
 
         # LSTM
         self.lstm_hidden_units = lstm_hidden_units
@@ -44,18 +38,11 @@ class CNNLSTMActorCriticModel(nn.Module):
         self.fc_critic = layer_init( nn.Linear(fc1_units, 1) ) 
 
     def forward(self, state, hx, cx, action=None):
-        # Conv features
+         # Conv features
         x = F.relu( self.conv1(state) )
-        x = self.pool1( x )
-
         x = F.relu( self.conv2(x) )
-        x = self.pool2( x )
-
         x = F.relu( self.conv3(x) )
-        x = self.pool3( x )
-
         x = F.relu( self.conv4(x) )
-        x = self.pool4( x )
 
         # Flatten
         x = x.view( -1, 1, self.state_size )
@@ -78,7 +65,7 @@ class CNNLSTMActorCriticModel(nn.Module):
         # Actor Critic
         x = F.relu( self.fc1(x) )        
 
-        probs = F.softmax( self.fc_action(x), dim=1 )
+        probs = F.softmax( self.fc_action(x), dim=2 )
 
         dist = Categorical( probs )
 

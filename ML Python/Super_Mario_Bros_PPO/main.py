@@ -29,13 +29,13 @@ print('actions len {}'.format(action_size))
 
 
 # hyperparameters
-N_STEP = 256
-LR = 1e-4
+N_STEP = 32
+BATCH_SIZE = 8
 
-BATCH_SIZE = 32
+LR = 1e-4
 GAMMA = 0.9
 EPSILON = 0.1
-ENTROPY_WEIGHT = 0.001
+ENTROPY_WEIGHT = 0.01
 GRADIENT_CLIP = 1
 
 LSTM_HIDDEN_UNITS = 512
@@ -57,7 +57,7 @@ optimizer = Optimizer(DEVICE, memory, model, adam,
     N_STEP, BATCH_SIZE, GAMMA, EPSILON, ENTROPY_WEIGHT, GRADIENT_CLIP)
 
 
-t_steps = 10000
+t_steps = 3000
 n_episodes = 1000
 for episode in range(n_episodes):
 
@@ -77,7 +77,7 @@ for episode in range(n_episodes):
 
         next_state, reward, done, info = env.step(action)
 
-        loss = 0 # optimizer.step(state, hx, cx, action, log_prob, reward)
+        loss = optimizer.step(state, hx, cx, action, log_prob, reward)
 
         env.render()
         

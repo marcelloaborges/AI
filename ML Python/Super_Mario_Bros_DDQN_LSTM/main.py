@@ -35,8 +35,8 @@ GAMMA = 0.9
 TAU = 1e-4
 UPDATE_EVERY = 1
 BUFFER_SIZE = int(1e4)
-BATCH_SIZE = 64
-LR = 1e-5
+BATCH_SIZE = 128
+LR = 1e-4
 EPSILON = 0.
 
 LSTM_HIDDEN_UNITS = 512
@@ -61,7 +61,7 @@ optimizer = Optimizer(DEVICE, memory, model, target_model, adam,
     ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE, LR)
 
 
-t_steps = 10000
+t_steps = 3000
 n_episodes = 1000
 for episode in range(n_episodes):
 
@@ -73,7 +73,6 @@ for episode in range(n_episodes):
     hx = np.zeros( [1, 1, LSTM_HIDDEN_UNITS] )
     cx = np.zeros( [1, 1, LSTM_HIDDEN_UNITS] )
 
-    # while True:
     for _ in range(t_steps):
         t_step += 1        
 
@@ -82,7 +81,7 @@ for episode in range(n_episodes):
 
         next_state, reward, done, info = env.step(action)        
  
-        loss = 0 # optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
+        loss = optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
 
         env.render()
 
