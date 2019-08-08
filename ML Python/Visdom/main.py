@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
 
-import torchvision
-import torchvision.datasets as dsets
+# import torchvision
+# import torchvision.datasets as dsets
 
-import visdom
-vis = visdom.Visdom()
+# import visdom
+# vis = visdom.Visdom()
 
 # vis.text("Hello, world!",env="main")
 
@@ -64,8 +64,8 @@ vis = visdom.Visdom()
 
 def loss_tracker(loss_plot, loss_value, num):
     '''num, loss_value, are Tensor''' 
-    vis.line(X=num, Y=loss_value, win = loss_plot, update='append' )
-
+    vis.line(X=num, Y=loss_value, win = loss_plot, update='append')
+  
 plt = vis.line(Y=torch.Tensor(1).zero_(), 
         opts=dict(
             # fillarea=True,

@@ -1,22 +1,35 @@
 import os
+import numpy as np
+
+# import cv2 as cv
 
 import torch
 import torch.optim as optim
 
-from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
-from model import CNNDDQN
-# from memory import Memory
+from cnn import CNN
+from ddqn import DDQN
+from rnd import RNDTargetModel, RNDPredictorModel
+
 from prioritized_memory import PrioritizedMemory
 from agent import Agent
 from optimizer import Optimizer
 
+from visdom_utils import VisdomI
+
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, SIMPLE_MOVEMENT)
+# ORIGINAL
+# env = gym_super_mario_bros.make('SuperMarioBros-v0')
+# BLACK
+env = gym_super_mario_bros.make('SuperMarioBros-v1')
+# PIXEL
+# env = gym_super_mario_bros.make('SuperMarioBros-v2')
+env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
 state_info = env.reset()
 action_info = env.action_space.sample()
@@ -30,62 +43,106 @@ print('actions len {}'.format(action_size))
 
 # hyperparameters
 ALPHA = 1
-GAMMA = 0.9
+GAMMA = 0.99
 TAU = 1e-4
 UPDATE_EVERY = 4
-BUFFER_SIZE = int(1e5)
-BATCH_SIZE = 256
-LR = 1e-4
-EPSILON = 0.
+BUFFER_SIZE = int(5e3)
+BATCH_SIZE = 32
+LR = 5e-4
+EPSILON = 0.1
 
-CHECKPOINT = './checkpoint.pth'
+RND_LR = 5e-5
+RND_OUTPUT_SIZE = 128
+RND_UPDATE_EVERY = 32
 
+CHECKPOINT_CNN = './checkpoint_cnn.pth'
+CHECKPOINT_MODEL = './checkpoint_model.pth'
+CHECKPOINT_RND_TARGET = './checkpoint_rnd_target.pth'
+CHECKPOINT_RND_PREDICTOR = './checkpoint_rnd_predictor.pth'
 
-model = CNNDDQN( DEVICE, action_size ).to(DEVICE)
-target_model = CNNDDQN( DEVICE, action_size ).to(DEVICE)
-adam = optim.Adam( model.parameters(), lr=LR )
+cnn = CNN().to(DEVICE)
+model = DDQN( cnn.state_size, action_size ).to(DEVICE)
+target = DDQN( cnn.state_size, action_size ).to(DEVICE)
+optimizer = optim.Adam( list(model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
-if os.path.isfile(CHECKPOINT):
-    model.load_state_dict(torch.load(CHECKPOINT))
-    target_model.load_state_dict(torch.load(CHECKPOINT))
+rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
+rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
+rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
+
+if os.path.isfile(CHECKPOINT_MODEL):
+    cnn.load_state_dict(torch.load(CHECKPOINT_CNN))
+    model.load_state_dict(torch.load(CHECKPOINT_MODEL))
+    target.load_state_dict(torch.load(CHECKPOINT_MODEL))
+    rnd_target.load_state_dict(torch.load(CHECKPOINT_RND_TARGET))
+    rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
 
 # memory = Memory(BUFFER_SIZE, BATCH_SIZE)
 memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
 
-agent = Agent(DEVICE, model, action_size)
-optimizer = Optimizer(DEVICE, memory, model, target_model, adam, 
-    ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE, LR)
+agent = Agent(DEVICE, cnn, model, action_size)
+optimizer = Optimizer(
+    DEVICE, 
+    memory, 
+    cnn, model, target, optimizer, 
+    rnd_target, rnd_predictor, rnd_optimizer,
+    ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE)
 
 
-t_steps = 10000
-n_episodes = 1000
+# vsI = VisdomI()
+
+# t_steps = 500
+_steps = 0
+n_episodes = 100
+track = False
+
 for episode in range(n_episodes):
 
     total_reward = 0
+    life = 2
 
     state = env.reset()
 
-    # while True:
-    for t in range(t_steps):
+    while True:
+    # for t in range(t_steps):
 
-        # action = env.action_space.sample()
+        # action = env.action_space.sample()        
+
+        # state = cv.cvtColor( state, cv.COLOR_BGR2GRAY )
+        # state = cv.resize( state, dsize=(60, 64), interpolation=cv.INTER_CUBIC )
+        # state = state.reshape( 1, -1 )
+
         action = agent.act( state, EPSILON )
 
         next_state, reward, done, info = env.step(action)
 
-        loss = 0 # optimizer.step(state, action, reward, next_state, done)
+        loss, rnd_loss = optimizer.step(state, action, reward, next_state, done)
 
         env.render()
 
         total_reward += reward
 
-        print('\rEpisode: {} \tT_step: \t{} \tTotal Reward: \t{} \tReward: \t{} \tLoss: \t{:.10f}'.format( episode + 1, t, total_reward, reward, loss ), end='')
+        # TRACKING        
+        _steps += 1
+        # if track:
+        #     vsI.track( _steps, loss, 'loss' )        
+        #     vsI.track( _steps, rnd_loss, 'rnd_loss' )     
+        #     vsI.track( _steps, total_reward, 'total_reward' )
+        #     # vsI.track( _steps, f_loss.unsqueeze(0), 'RI' )
+
+        print('\rEpisode: {} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND Loss: \t{:.5f}'.format( episode + 1, total_reward, reward, life, loss, rnd_loss ), end='')
 
         if done:
             break
 
+        if info['life'] < life:
+            total_reward = 0
+            life = info['life']
+
         state = next_state
 
-    model.checkpoint(CHECKPOINT)
+    cnn.checkpoint(CHECKPOINT_CNN)    
+    model.checkpoint(CHECKPOINT_MODEL)
+    rnd_target.checkpoint(CHECKPOINT_RND_TARGET)
+    rnd_predictor.checkpoint(CHECKPOINT_RND_PREDICTOR)
 
 env.close()

@@ -55,18 +55,18 @@ class PrioritizedMemory():
         dones       = []
 
         for exp in samples:                        
-            states.append     ( exp['state']      )
+            states.append     ( exp['state']      )           
             actions.append    ( exp['action']     )
             rewards.append    ( exp['reward']     )
             next_states.append( exp['next_state'] )
             dones.append      ( exp['done']       )
 
-        states = np.array(states)
-        actions = np.array(actions)
-        rewards = np.array(rewards)
+        states      = np.array(states)
+        actions     = np.array(actions)
+        rewards     = np.array(rewards)
         next_states = np.array(next_states)
-        dones = np.array(dones)
-        importance = np.array(importance)
+        dones       = np.array(dones)
+        importance  = np.array(importance)
 
         return states, actions, rewards, next_states, dones, importance, sample_indices
     

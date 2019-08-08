@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
@@ -17,7 +17,7 @@ from optimizer import Optimizer
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, SIMPLE_MOVEMENT)
+env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
 state_info = env.reset()
 action_info = env.action_space.sample()
