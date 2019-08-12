@@ -1,8 +1,6 @@
 import os
 import numpy as np
 
-# import cv2 as cv
-
 import torch
 import torch.optim as optim
 
@@ -14,7 +12,8 @@ from cnn import CNN
 from ddqn import DDQN
 from rnd import RNDTargetModel, RNDPredictorModel
 
-from prioritized_memory import PrioritizedMemory
+from memory import Memory
+# from prioritized_memory import PrioritizedMemory
 from agent import Agent
 from optimizer import Optimizer
 
@@ -43,13 +42,13 @@ print('actions len {}'.format(action_size))
 
 # hyperparameters
 ALPHA = 1
-GAMMA = 0.99
-TAU = 1e-4
-UPDATE_EVERY = 4
+GAMMA = 0.9
+TAU = 3e-2
+UPDATE_EVERY = 16
 BUFFER_SIZE = int(5e3)
 BATCH_SIZE = 32
 LR = 5e-4
-EPSILON = 0.1
+EPSILON = 0.05
 
 RND_LR = 5e-5
 RND_OUTPUT_SIZE = 128
@@ -66,7 +65,7 @@ target = DDQN( cnn.state_size, action_size ).to(DEVICE)
 optimizer = optim.Adam( list(model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
 rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
-rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
+rnd_predictor = RNDPredictorModel( cnn.state_size + action_size ).to(DEVICE)
 rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
 
 if os.path.isfile(CHECKPOINT_MODEL):
@@ -76,13 +75,17 @@ if os.path.isfile(CHECKPOINT_MODEL):
     rnd_target.load_state_dict(torch.load(CHECKPOINT_RND_TARGET))
     rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
 
-# memory = Memory(BUFFER_SIZE, BATCH_SIZE)
-memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
+
+good_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
+bad_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
+# good_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
+# bad_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
+
 
 agent = Agent(DEVICE, cnn, model, action_size)
 optimizer = Optimizer(
     DEVICE, 
-    memory, 
+    good_memory, bad_memory,
     cnn, model, target, optimizer, 
     rnd_target, rnd_predictor, rnd_optimizer,
     ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE)
@@ -105,12 +108,7 @@ for episode in range(n_episodes):
     while True:
     # for t in range(t_steps):
 
-        # action = env.action_space.sample()        
-
-        # state = cv.cvtColor( state, cv.COLOR_BGR2GRAY )
-        # state = cv.resize( state, dsize=(60, 64), interpolation=cv.INTER_CUBIC )
-        # state = state.reshape( 1, -1 )
-
+        # action = env.action_space.sample()
         action = agent.act( state, EPSILON )
 
         next_state, reward, done, info = env.step(action)

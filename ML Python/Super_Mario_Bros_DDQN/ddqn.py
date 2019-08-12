@@ -28,9 +28,7 @@ class DDQN(nn.Module):
         # FC 1024x512x7        
 
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
-
-        self.fc_actions = layer_init( nn.Linear(fc1_units, fc2_units) )
-        self.fc_value = layer_init( nn.Linear(fc1_units, fc2_units) )
+        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )        
 
         self.actions = layer_init( nn.Linear(fc2_units, action_size) )
         self.value = layer_init( nn.Linear(fc2_units, 1) )
@@ -46,15 +44,16 @@ class DDQN(nn.Module):
 
         # Actor
         x = F.relu( self.fc1(state) )
-                
-        adv = F.relu( self.fc_actions(x) )
-        adv = self.actions( adv )
+        x = F.relu( self.fc2(x) )
+                        
+        adv = self.actions( x )
         adv = adv - adv.mean()
-        
-        value = F.relu( self.fc_value(x) )
-        value = self.value(value)
                 
-        return adv + value
+        value = self.value(x)
+
+        actions_values = adv + value        
+
+        return actions_values
 
     def load(self, checkpoint):        
         if os.path.isfile(checkpoint):

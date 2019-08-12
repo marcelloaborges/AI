@@ -17,11 +17,11 @@ class CNN(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=8, stride=4, padding=1)        
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
 
         self.pool = nn.MaxPool2d(2, ceil_mode=True)
 
-        self.state_size = 128 * 4 * 4
+        self.state_size = 64 * 4 * 4
 
     def forward(self, state):
         # Conv features

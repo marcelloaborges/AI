@@ -7,9 +7,6 @@ class PrioritizedMemory():
         self.BUFFER_SIZE = buffer_size
         self.BATCH_SIZE = batch_size
 
-        self.memory = {}
-        self.priorities = {}
-
         self.memory = deque(maxlen=buffer_size)
         self.priorities = deque(maxlen=buffer_size)
         
@@ -38,10 +35,13 @@ class PrioritizedMemory():
 
         return importance_normalized
         
-    def enougth_samples(self):
+    def _enougth_samples(self):
         return len( self.memory ) >= self.BATCH_SIZE
 
     def sample(self, priority_scale=1.0):
+        if not self._enougth_samples():            
+            return None
+
         # sample_size = min(len(self.memory), self.BATCH_SIZE)
         sample_probs = self._get_probabilities(priority_scale)
         sample_indices = random.choices( range( len(self.memory) ), k=self.BATCH_SIZE, weights=sample_probs)
