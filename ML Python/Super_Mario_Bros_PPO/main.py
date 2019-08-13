@@ -39,18 +39,18 @@ print('actions len {}'.format(action_size))
 
 
 # hyperparameters
-N_STEP = 32
+N_STEP = 4
 GAMMA = 0.99
 BATCH_SIZE = 32
 LR_ACTOR = 1e-4
 LR_CRITIC = 1e-4
 EPSILON = 0.1
 ENTROPY_WEIGHT = 0.001
-LR = 5e-5
+LR = 5e-4
 ACTOR_LR = 5e-5
 CRITIC_LR = 5e-5
 
-RND_LR = 5e-5
+RND_LR = 5e-4
 RND_OUTPUT_SIZE = 128
 RND_UPDATE_EVERY = 32
 
@@ -68,7 +68,7 @@ critic_model = PPOCritic( cnn.state_size, action_size ).to(DEVICE)
 optimizer = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
 rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
-rnd_predictor = RNDPredictorModel( cnn.state_size + action_size ).to(DEVICE)
+rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
 rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
 
 if os.path.isfile(CHECKPOINT_CNN):
@@ -111,7 +111,7 @@ for episode in range(n_episodes):
 
         next_state, reward, done, info = env.step( action )
 
-        loss, rnd_loss = optimizer.step( state, action, log_prob, reward )
+        loss, rnd_loss = optimizer.step( state, action, log_prob, reward, next_state )
 
         env.render()
 
