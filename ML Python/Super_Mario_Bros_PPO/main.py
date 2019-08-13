@@ -65,7 +65,7 @@ cnn = CNN().to(DEVICE)
 actor_model = PPOActor( cnn.state_size, action_size ).to(DEVICE)
 critic_model = PPOCritic( cnn.state_size, action_size ).to(DEVICE)
 
-optimizer_actor = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
+optimizer = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
 rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
 rnd_predictor = RNDPredictorModel( cnn.state_size + action_size ).to(DEVICE)
@@ -82,18 +82,15 @@ if os.path.isfile(CHECKPOINT_CNN):
 
 
 memory = Memory()
+agent = Agent(DEVICE, cnn, actor_model)
 
-noise = OUNoise(action_size)
-
-agent = Agent(DEVICE, cnn, actor_model, noise)
 optimizer = Optimizer(
     DEVICE, 
-    good_memory, bad_memory,
+    memory,
     cnn, 
-    actor_model, actor_target, optimizer_actor, 
-    critic_model, critic_target, optimizer_critic, 
+    actor_model, critic_model, optimizer,     
     rnd_target, rnd_predictor, rnd_optimizer,
-    ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE)
+    N_STEP, GAMMA, EPSILON, ENTROPY_WEIGHT)
 
 
 # t_steps = 500
@@ -110,17 +107,17 @@ for episode in range(n_episodes):
     # for t in range(t_steps):
 
         # action = env.action_space.sample()
-        action = agent.act( state, ADD_NOISE )
+        action, log_prob = agent.act( state )
 
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, done, info = env.step( action )
 
-        actor_loss, critic_loss, rnd_loss = optimizer.step(state, action, reward, next_state, done)
+        loss, rnd_loss = optimizer.step( state, action, log_prob, reward )
 
         env.render()
 
         total_reward += reward
 
-        print('\rEpisode: {} \tTotal: \t{} \tReward: \t{} \tLife: \t{} \tActor: \t{:.5f} \tCritic: \t{:.5f} \tRND: \t{:.5f}'.format( episode + 1, total_reward, reward, life, actor_loss, critic_loss, rnd_loss ), end='')
+        print('\rEpisode: {} \tTotal: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND: \t{:.5f}'.format( episode + 1, total_reward, reward, life, loss, rnd_loss ), end='')
 
         if done:
             break

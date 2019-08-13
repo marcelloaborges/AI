@@ -8,8 +8,7 @@ class Agent:
         self, 
         device,
         cnn,
-        actor,
-        actions_size
+        actor        
         ):
 
         self.DEVICE = device
