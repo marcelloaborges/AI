@@ -149,7 +149,8 @@ class Optimizer:
             Q_target_next = self.target(next_states_flatten).max(1)[0]                        
             # Q_target = self.ALPHA * (rewards + self.GAMMA * Q_target_next * (1 - dones))
 
-            ie_rewards = rewards +  ( Ri.detach() * 0.0001 )
+            ie_rewards = torch.clamp( rewards + ( Ri.detach() * 0.0001 ), -15, 1 )
+            # i_rewards = Ri.detach() * 0.0001
             Q_target = self.ALPHA * (ie_rewards + self.GAMMA * Q_target_next * (1 - dones))
 
         states_flatten = self.cnn(states)

@@ -23,9 +23,9 @@ from visdom_utils import VisdomI
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # ORIGINAL
-# env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = gym_super_mario_bros.make('SuperMarioBros-v0')
 # BLACK
-env = gym_super_mario_bros.make('SuperMarioBros-v1')
+# env = gym_super_mario_bros.make('SuperMarioBros-v1')
 # PIXEL
 # env = gym_super_mario_bros.make('SuperMarioBros-v2')
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
