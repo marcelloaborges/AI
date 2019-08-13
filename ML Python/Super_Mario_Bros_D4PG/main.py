@@ -9,13 +9,14 @@ import gym_super_mario_bros
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
 from cnn import CNN
-from ppo import PPOActor, PPOCritic
+from d4pg import D4PGActor, D4PGCritic
 from rnd import RNDTargetModel, RNDPredictorModel
 
-from agent import Agent
-from optimizer import Optimizer
+from noise import OUNoise
 
 from memory import Memory
+from agent import Agent
+from optimizer import Optimizer
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -39,16 +40,16 @@ print('actions len {}'.format(action_size))
 
 
 # hyperparameters
-N_STEP = 32
+ALPHA = 1
 GAMMA = 0.99
-BATCH_SIZE = 32
+TAU = 2e-1
+UPDATE_EVERY = 16
+BUFFER_SIZE = int(1e5)
+BATCH_SIZE = 128
 LR_ACTOR = 1e-4
 LR_CRITIC = 1e-4
-EPSILON = 0.1
-ENTROPY_WEIGHT = 0.001
-LR = 5e-5
-ACTOR_LR = 5e-5
-CRITIC_LR = 5e-5
+
+ADD_NOISE = True
 
 RND_LR = 5e-5
 RND_OUTPUT_SIZE = 128
@@ -62,10 +63,14 @@ CHECKPOINT_RND_PREDICTOR = './checkpoint_rnd_predictor.pth'
 
 cnn = CNN().to(DEVICE)
 
-actor_model = PPOActor( cnn.state_size, action_size ).to(DEVICE)
-critic_model = PPOCritic( cnn.state_size, action_size ).to(DEVICE)
+actor_model = D4PGActor( cnn.state_size, action_size ).to(DEVICE)
+actor_target = D4PGActor( cnn.state_size, action_size ).to(DEVICE)
 
-optimizer_actor = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
+critic_model = D4PGCritic( cnn.state_size, action_size ).to(DEVICE)
+critic_target = D4PGCritic( cnn.state_size, action_size ).to(DEVICE)
+
+optimizer_actor = optim.Adam( list(actor_model.parameters()) + list(cnn.parameters()), lr=LR_ACTOR, weight_decay=1e-4 )
+optimizer_critic = optim.Adam( critic_model.parameters(), lr=LR_CRITIC, weight_decay=1e-4 )
 
 rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
 rnd_predictor = RNDPredictorModel( cnn.state_size + action_size ).to(DEVICE)
@@ -75,13 +80,19 @@ if os.path.isfile(CHECKPOINT_CNN):
     cnn.load_state_dict(torch.load(CHECKPOINT_CNN))
     
     actor_model.load_state_dict(torch.load(CHECKPOINT_ACTOR))
+    actor_target.load_state_dict(torch.load(CHECKPOINT_ACTOR))
+
     critic_model.load_state_dict(torch.load(CHECKPOINT_CRITIC))
+    critic_target.load_state_dict(torch.load(CHECKPOINT_CRITIC))
 
     rnd_target.load_state_dict(torch.load(CHECKPOINT_RND_TARGET))
     rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
 
 
-memory = Memory()
+good_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
+bad_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
+# good_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
+# bad_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
 
 noise = OUNoise(action_size)
 

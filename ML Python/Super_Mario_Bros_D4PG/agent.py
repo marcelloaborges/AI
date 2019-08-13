@@ -9,16 +9,19 @@ class Agent:
         device,
         cnn,
         actor,
-        actions_size
+        noise
         ):
 
         self.DEVICE = device
 
         # NEURAL MODEL
         self.cnn = cnn
-        self.actor = actor        
+        self.actor = actor
 
-    def act(self, state):
+        # NOISE
+        self.noise = noise
+
+    def act(self, state, add_noise=False):
         state = torch.from_numpy(state.T.copy()).float().unsqueeze(0).to(self.DEVICE)        
 
         self.cnn.eval()
@@ -26,12 +29,17 @@ class Agent:
 
         with torch.no_grad():
             state_flatten = self.cnn(state)
-            action, log_prob, _ = self.actor(state_flatten)
+            action_values = self.actor(state_flatten).cpu().data.numpy()
 
         self.cnn.train()
         self.actor.train()
         
-        action = action.cpu().detach().numpy().item()
-        log_prob = log_prob.cpu().detach().numpy().item()
+        if add_noise:
+            action_values += self.noise.sample()
 
-        return action, log_prob
+        action = np.argmax(action_values)
+
+        return action
+
+    def reset(self):
+        self.noise.reset()
