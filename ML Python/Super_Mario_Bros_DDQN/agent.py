@@ -21,7 +21,8 @@ class Agent:
         self.actions_size = actions_size
 
     def act(self, state, eps=0.):
-        state = torch.from_numpy(state.T.copy()).float().unsqueeze(0).to(self.DEVICE)        
+        # state = torch.from_numpy(state.T.copy()).float().unsqueeze(0).to(self.DEVICE)
+        state = torch.from_numpy( np.stack(state) ).float().unsqueeze(0).to(self.DEVICE)
 
         self.cnn.eval()
         self.model.eval()

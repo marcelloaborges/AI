@@ -1,6 +1,9 @@
 import os
 import numpy as np
 
+import cv2 as cv
+from collections import deque
+
 import torch
 import torch.optim as optim
 
@@ -23,11 +26,14 @@ from visdom_utils import VisdomI
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # ORIGINAL
-env = gym_super_mario_bros.make('SuperMarioBros-v0')
+# env = gym_super_mario_bros.make('SuperMarioBros-v0')
 # BLACK
 # env = gym_super_mario_bros.make('SuperMarioBros-v1')
 # PIXEL
 # env = gym_super_mario_bros.make('SuperMarioBros-v2')
+# ONLY FIRST STATE
+env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
 state_info = env.reset()
@@ -43,14 +49,14 @@ print('actions len {}'.format(action_size))
 # hyperparameters
 ALPHA = 1
 GAMMA = 0.9
-TAU = 3e-2
+TAU = 1e-3
 UPDATE_EVERY = 16
-BUFFER_SIZE = int(5e3)
-BATCH_SIZE = 32
-LR = 5e-4
+BUFFER_SIZE = int(5e4)
+BATCH_SIZE = 128
+LR = 1e-3
 EPSILON = 0.05
 
-RND_LR = 5e-5
+RND_LR = 1e-4
 RND_OUTPUT_SIZE = 128
 RND_UPDATE_EVERY = 32
 
@@ -94,16 +100,34 @@ optimizer = Optimizer(
 # vsI = VisdomI()
 
 # t_steps = 500
+n_frames = 3
+resize_dim = ( 60, 64 ) # 240 x 256 / 4
+
 _steps = 0
 n_episodes = 100
 track = False
+
+def state_resize_n_to_gray_scale(state, dim):
+    t_state = cv.resize( state, dim, interpolation = cv.INTER_AREA )
+    t_state = cv.cvtColor( t_state, cv.COLOR_BGR2GRAY )
+
+    return t_state
 
 for episode in range(n_episodes):
 
     total_reward = 0
     life = 2
 
-    state = env.reset()
+    state = deque(maxlen=n_frames)
+
+    t_state = env.reset()
+    state.append( state_resize_n_to_gray_scale( t_state, resize_dim ) )
+
+    for frame in range(n_frames - 1):
+        action = env.action_space.sample()
+        next_state, _, _, _ = env.step(action)
+
+        state.append( state_resize_n_to_gray_scale( next_state, resize_dim ) )
 
     while True:
     # for t in range(t_steps):
@@ -111,22 +135,18 @@ for episode in range(n_episodes):
         # action = env.action_space.sample()
         action = agent.act( state, EPSILON )
 
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, done, info = env.step(action)        
 
-        loss, rnd_loss = optimizer.step(state, action, reward, next_state, done)
+        next_state = state_resize_n_to_gray_scale( next_state, resize_dim)
+        t_state = state.copy()
+        t_state.append( next_state )
+
+        loss, rnd_loss = optimizer.step(state, action, reward, t_state, done)
 
         env.render()
 
         total_reward += reward
-
-        # TRACKING        
-        _steps += 1
-        # if track:
-        #     vsI.track( _steps, loss, 'loss' )        
-        #     vsI.track( _steps, rnd_loss, 'rnd_loss' )     
-        #     vsI.track( _steps, total_reward, 'total_reward' )
-        #     # vsI.track( _steps, f_loss.unsqueeze(0), 'RI' )
-
+        
         print('\rEpisode: {} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND Loss: \t{:.5f}'.format( episode + 1, total_reward, reward, life, loss, rnd_loss ), end='')
 
         if done:
@@ -136,7 +156,7 @@ for episode in range(n_episodes):
             total_reward = 0
             life = info['life']
 
-        state = next_state
+        state.append( next_state )
 
     cnn.checkpoint(CHECKPOINT_CNN)    
     model.checkpoint(CHECKPOINT_MODEL)

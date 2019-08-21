@@ -47,9 +47,11 @@ class Optimizer:
 
     def step(self, state, action, reward, next_state, done):
         if reward > 0:
-            self.good_memory.add( state.T, action, reward, next_state.T, done )
+            # self.good_memory.add( state.T, action, reward, next_state.T, done )
+            self.good_memory.add( np.stack(state), action, reward, np.stack(next_state), done )
         else:
-            self.bad_memory.add( state.T, action, reward, next_state.T, done )
+            # self.bad_memory.add( state.T, action, reward, next_state.T, done )
+            self.bad_memory.add( np.stack(state), action, reward, np.stack(next_state), done )
 
         # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
@@ -121,13 +123,13 @@ class Optimizer:
 
         # RND intrinsic reward               
         with torch.no_grad():
-            next_states_flatten = self.cnn(next_states)                     
+            next_states_flatten = self.cnn(next_states)
             rnd_target = self.rnd_target(next_states_flatten)
 
             states_flatten = self.cnn(states)
             action_values = self.model(states_flatten)
 
-        rnd_predictor = self.rnd_predictor( torch.cat( (next_states_flatten, action_values), dim=1 ) )
+        rnd_predictor = self.rnd_predictor( torch.cat( (states_flatten, action_values), dim=1 ) )
 
         Ri = ( torch.sum( ( rnd_target - rnd_predictor ).pow(2), dim=1 ) ) / 2
 
@@ -149,8 +151,8 @@ class Optimizer:
             Q_target_next = self.target(next_states_flatten).max(1)[0]                        
             # Q_target = self.ALPHA * (rewards + self.GAMMA * Q_target_next * (1 - dones))
 
-            ie_rewards = torch.clamp( rewards + ( Ri.detach() * 0.0001 ), -15, 1 )
-            # i_rewards = Ri.detach() * 0.0001
+            # ie_rewards = torch.clamp( rewards + ( Ri.detach() * 0.0001 ), -15, 1 )
+            ie_rewards = rewards + Ri.detach() * 0.0005
             Q_target = self.ALPHA * (ie_rewards + self.GAMMA * Q_target_next * (1 - dones))
 
         states_flatten = self.cnn(states)
