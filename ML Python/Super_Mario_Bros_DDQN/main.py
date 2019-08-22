@@ -100,11 +100,12 @@ optimizer = Optimizer(
 # vsI = VisdomI()
 
 # t_steps = 500
-n_frames = 3
+_steps = 0
+n_frames = 4
 resize_dim = ( 60, 64 ) # 240 x 256 / 4
 
 _steps = 0
-n_episodes = 100
+n_episodes = 1000
 track = False
 
 def state_resize_n_to_gray_scale(state, dim):
@@ -145,9 +146,9 @@ for episode in range(n_episodes):
 
         env.render()
 
-        total_reward += reward
+        total_reward += reward        
         
-        print('\rEpisode: {} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND Loss: \t{:.5f}'.format( episode + 1, total_reward, reward, life, loss, rnd_loss ), end='')
+        print('\rEpisode: {} \tSteps: {} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND Loss: \t{:.5f}'.format( episode + 1, _steps, total_reward, reward, life, loss, rnd_loss ), end='')
 
         if done:
             break
@@ -157,6 +158,7 @@ for episode in range(n_episodes):
             life = info['life']
 
         state.append( next_state )
+        _steps += 1
 
     cnn.checkpoint(CHECKPOINT_CNN)    
     model.checkpoint(CHECKPOINT_MODEL)

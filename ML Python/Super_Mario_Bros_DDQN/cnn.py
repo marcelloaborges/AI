@@ -10,7 +10,7 @@ def layer_init(layer, w_scale=1.0):
     return layer
 
 class CNN(nn.Module):
-    def __init__(self, channels=3, img_rows=256, img_cols=240):
+    def __init__(self, channels=4, img_rows=256, img_cols=240):
         super(CNN, self).__init__()
 
         # CONV        
@@ -26,10 +26,10 @@ class CNN(nn.Module):
 
     def forward(self, state):
         # Conv features
-        x = F.elu( self.conv1(state) )
-        x = F.elu( self.conv2(x) )
-        x = F.elu( self.conv3(x) )
-        x = F.elu( self.conv4(x) )
+        x = F.relu( self.conv1(state) )
+        x = F.relu( self.conv2(x) )
+        x = F.relu( self.conv3(x) )
+        x = F.relu( self.conv4(x) )
 
         # Flatten
         x = x.view( -1, self.state_size )
