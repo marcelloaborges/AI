@@ -26,10 +26,10 @@ class CNN(nn.Module):
 
     def forward(self, state):
         # Conv features
-        x = F.elu( self.conv1(state) )
-        x = F.elu( self.conv2(x) )
-        x = F.elu( self.conv3(x) )
-        x = F.elu( self.conv4(x) )
+        x = F.relu( self.conv1(state) )
+        x = F.relu( self.conv2(x) )
+        x = F.relu( self.conv3(x) )
+        x = F.relu( self.conv4(x) )
 
         # Flatten
         x = x.view( -1, self.state_size )

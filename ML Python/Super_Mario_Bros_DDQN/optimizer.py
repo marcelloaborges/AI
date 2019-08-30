@@ -9,7 +9,7 @@ class Optimizer:
     def __init__(
         self, 
         device,
-        good_memory, bad_memory,
+        memory,
         cnn, model, target, optimizer,
         rnd_target, rnd_predictor, rnd_optimizer,
         alpha, gamma, TAU, update_every, buffer_size, batch_size
@@ -18,8 +18,7 @@ class Optimizer:
         self.DEVICE = device
         
         # MEMORY
-        self.good_memory = good_memory
-        self.bad_memory = bad_memory
+        self.memory = memory
 
         # NEURAL MODEL
         self.cnn = cnn
@@ -45,78 +44,28 @@ class Optimizer:
         self.loss = 0
         self.rnd_loss = 0
 
-    def step(self, state, action, reward, next_state, done):
-        if reward > 0:
-            # self.good_memory.add( state.T, action, reward, next_state.T, done )
-            self.good_memory.add( np.stack(state), action, reward, np.stack(next_state), done )
-        else:
-            # self.bad_memory.add( state.T, action, reward, next_state.T, done )
-            self.bad_memory.add( np.stack(state), action, reward, np.stack(next_state), done )
+    def step(self, state, action, reward, next_state, done):        
+        self.memory.add( np.stack(state), action, reward, np.stack(next_state), done )        
 
         # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.UPDATE_EVERY
         if self.t_step == 0:
             # If enough samples are available in memory then learn            
-            # if self.good_memory.enougth_samples() and self.bad_memory.enougth_samples():
-            self.loss, self.rnd_loss = self._learn()
+            if self.memory.enougth_samples():
+                self.loss, self.rnd_loss = self._learn()
 
         return self.loss, self.rnd_loss
 
         
     def _learn(self):                    
-        states              = []
-        actions             = []
-        rewards             = []
-        next_states         = []
-        dones               = []
-        # importances         = []
-        # good_sample_indices = []
-        # bad_sample_indices  = []
 
-        # states, actions, rewards, next_states, dones, importance, sample_indices = self.bad_memory.sample()
-        good_samples = self.good_memory.sample()
-        if good_samples:
-            # t_states, t_actions, t_rewards, t_next_states, t_dones, t_importance, t_sample_indices = good_samples
-            t_states, t_actions, t_rewards, t_next_states, t_dones = good_samples
-
-            states.append(t_states)
-            actions.append(t_actions)
-            rewards.append(t_rewards)
-            next_states.append(t_next_states)
-            dones.append(t_dones)
-            # importances.append(t_importance)
-            # good_sample_indices = t_sample_indices
-
-        bad_samples = self.bad_memory.sample()
-        if bad_samples:
-            # t_states, t_actions, t_rewards, t_next_states, t_dones, t_importance, t_sample_indices = bad_samples
-            t_states, t_actions, t_rewards, t_next_states, t_dones = bad_samples
-
-            states.append(t_states)
-            actions.append(t_actions)
-            rewards.append(t_rewards)
-            next_states.append(t_next_states)
-            dones.append(t_dones)
-            # importances.append(t_importance)
-            # bad_sample_indices = t_sample_indices
-
-        if not good_samples and not bad_samples:
-            return 0, 0
-
-        states      = np.vstack( states )
-        actions     = np.vstack( actions ).reshape(1, -1)
-        rewards     = np.vstack( rewards ).reshape(1, -1)
-        next_states = np.vstack( next_states )
-        dones       = np.vstack( dones ).reshape(1, -1)
-        # importances = np.vstack( importances ).reshape(1, -1)
-
-
+        states, actions, rewards, next_states, dones = self.memory.sample_inverse_dist()
+        
         states      = torch.from_numpy( states                 ).float().to(self.DEVICE)           
         actions     = torch.from_numpy( actions                ).long().to(self.DEVICE).squeeze(0)        
         rewards     = torch.from_numpy( rewards                ).float().to(self.DEVICE).squeeze(0)  
         next_states = torch.from_numpy( next_states            ).float().to(self.DEVICE)        
         dones       = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE).squeeze(0)
-        # importances = torch.from_numpy( importances            ).float().to(self.DEVICE).squeeze(0)
 
         # RND
         self.rnd_optimizer.zero_grad()
@@ -126,10 +75,7 @@ class Optimizer:
             next_states_flatten = self.cnn(next_states)
             rnd_target = self.rnd_target(next_states_flatten)
 
-            states_flatten = self.cnn(states)
-            action_values = self.model(states_flatten)
-
-        rnd_predictor = self.rnd_predictor( torch.cat( (states_flatten, action_values), dim=1 ) )
+        rnd_predictor = self.rnd_predictor( next_states_flatten )
 
         Ri = ( torch.sum( ( rnd_target - rnd_predictor ).pow(2), dim=1 ) ) / 2
 
@@ -193,12 +139,7 @@ class Optimizer:
 
         # update target model
         self.soft_update_target_model()
-
-        # update memory priorities        
-        # loss = loss.cpu().data.numpy().reshape(2, -1)
-        # self.good_memory.set_priorities(good_sample_indices, loss.cpu().data.numpy())
-        # self.bad_memory.set_priorities(bad_sample_indices, loss.cpu().data.numpy())
-
+       
         return f_loss.item(), rnd_loss.item()
 
     def soft_update_target_model(self):

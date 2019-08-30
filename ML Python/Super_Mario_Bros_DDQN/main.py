@@ -1,4 +1,5 @@
 import os
+from os import system
 import numpy as np
 
 import cv2 as cv
@@ -15,7 +16,8 @@ from cnn import CNN
 from ddqn import DDQN
 from rnd import RNDTargetModel, RNDPredictorModel
 
-from memory import Memory
+from unusual_memory import UnusualMemory
+# from memory import Memory
 # from prioritized_memory import PrioritizedMemory
 from agent import Agent
 from optimizer import Optimizer
@@ -51,12 +53,12 @@ ALPHA = 1
 GAMMA = 0.9
 TAU = 1e-3
 UPDATE_EVERY = 16
-BUFFER_SIZE = int(5e4)
+BUFFER_SIZE = int(1e4)
 BATCH_SIZE = 128
 LR = 1e-3
 EPSILON = 0.05
 
-RND_LR = 1e-4
+RND_LR = 5e-3
 RND_OUTPUT_SIZE = 128
 RND_UPDATE_EVERY = 32
 
@@ -71,7 +73,7 @@ target = DDQN( cnn.state_size, action_size ).to(DEVICE)
 optimizer = optim.Adam( list(model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
 rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
-rnd_predictor = RNDPredictorModel( cnn.state_size + action_size ).to(DEVICE)
+rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
 rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
 
 if os.path.isfile(CHECKPOINT_MODEL):
@@ -82,16 +84,15 @@ if os.path.isfile(CHECKPOINT_MODEL):
     rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
 
 
-good_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
-bad_memory = Memory(BUFFER_SIZE, BATCH_SIZE)
-# good_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
-# bad_memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
+memory = UnusualMemory(BUFFER_SIZE, BATCH_SIZE)
+# memory = Memory(BUFFER_SIZE, BATCH_SIZE)
+# memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
 
 
 agent = Agent(DEVICE, cnn, model, action_size)
 optimizer = Optimizer(
     DEVICE, 
-    good_memory, bad_memory,
+    memory,
     cnn, model, target, optimizer, 
     rnd_target, rnd_predictor, rnd_optimizer,
     ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE)
@@ -105,7 +106,7 @@ n_frames = 4
 resize_dim = ( 60, 64 ) # 240 x 256 / 4
 
 _steps = 0
-n_episodes = 1000
+n_episodes = 300
 track = False
 
 def state_resize_n_to_gray_scale(state, dim):
@@ -117,7 +118,6 @@ def state_resize_n_to_gray_scale(state, dim):
 for episode in range(n_episodes):
 
     total_reward = 0
-    life = 2
 
     state = deque(maxlen=n_frames)
 
@@ -146,16 +146,23 @@ for episode in range(n_episodes):
 
         env.render()
 
-        total_reward += reward        
+        total_reward += reward                
+        reward_inverse_dist = memory.rewards_distribution()
         
-        print('\rEpisode: {} \tSteps: {} \tTotal Reward: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND Loss: \t{:.5f}'.format( episode + 1, _steps, total_reward, reward, life, loss, rnd_loss ), end='')
+
+        if _steps % 100 == 0:
+            reward_inverse_dist = dict(sorted(reward_inverse_dist.items(), key=lambda kv: kv[0]))
+            rd_str = 'DR => '
+            for k, value in reward_inverse_dist.items():
+                rd_str += ' {}: {:.3f} |'.format(k, value)
+            
+            system('cls')
+            print('\rE: {} St: {} TR: {} R: {} L: {:.3f} RL: {:.3f} | {}'
+                .format( episode + 1, _steps, total_reward, reward, loss, rnd_loss, rd_str ), end='')    
+
 
         if done:
             break
-
-        if info['life'] < life:
-            total_reward = 0
-            life = info['life']
 
         state.append( next_state )
         _steps += 1
