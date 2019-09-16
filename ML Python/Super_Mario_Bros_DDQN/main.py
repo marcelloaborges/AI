@@ -1,28 +1,27 @@
 import os
 from os import system
 import numpy as np
+from PIL import Image
 
 import cv2 as cv
 from collections import deque
 
 import torch
 import torch.optim as optim
+from torchvision import models, transforms
+from torch.utils.tensorboard import SummaryWriter
 
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
-from cnn import CNN
-from ddqn import DDQN
-from rnd import RNDTargetModel, RNDPredictorModel
+from model import Encoder, Decoder, DDQN, ICMTarget, ICM
 
 from unusual_memory import UnusualMemory
 # from memory import Memory
 # from prioritized_memory import PrioritizedMemory
 from agent import Agent
 from optimizer import Optimizer
-
-from visdom_utils import VisdomI
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -40,48 +39,62 @@ env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
 state_info = env.reset()
 action_info = env.action_space.sample()
-action_size = env.action_space.n
+ACTION_SIZE = env.action_space.n
 
 print('states looks like {}'.format(state_info))
 
 print('states len {}'.format(state_info.shape))
-print('actions len {}'.format(action_size))
+print('actions len {}'.format(ACTION_SIZE))
 
 
 # hyperparameters
+BATCH_SIZE = 24
+
+# VAE
+COMPRESSED_FEATURES_SIZE = 256
+VAE_SAMPLES = 4
+VAE_LR = 1e-3
+CICLICAL_B_STEPS = 1000
+
+# DQN
 ALPHA = 1
 GAMMA = 0.9
 TAU = 1e-3
 UPDATE_EVERY = 16
-BUFFER_SIZE = int(1e4)
-BATCH_SIZE = 128
-LR = 1e-3
+BUFFER_SIZE = int(1e3)
+DDQN_LR = 1e-3
 EPSILON = 0.05
 
-RND_LR = 5e-3
-RND_OUTPUT_SIZE = 128
-RND_UPDATE_EVERY = 32
+# ICM
+ICM_LR = 5e-3
+ICM_OUTPUT_SIZE = 64
 
-CHECKPOINT_CNN = './checkpoint_cnn.pth'
-CHECKPOINT_MODEL = './checkpoint_model.pth'
-CHECKPOINT_RND_TARGET = './checkpoint_rnd_target.pth'
-CHECKPOINT_RND_PREDICTOR = './checkpoint_rnd_predictor.pth'
+CHECKPOINT_ENCODER = './checkpoint_encoder.pth'
+CHECKPOINT_DECODER = './checkpoint_decoder.pth'
+CHECKPOINT_DDQN = './checkpoint_ddqn.pth'
+CHECKPOINT_ICM_TARGET = './checkpoint_icm_target.pth'
+CHECKPOINT_ICM = './checkpoint_icm.pth'
 
-cnn = CNN().to(DEVICE)
-model = DDQN( cnn.state_size, action_size ).to(DEVICE)
-target = DDQN( cnn.state_size, action_size ).to(DEVICE)
-optimizer = optim.Adam( list(model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
 
-rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
-rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
-rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
+icm_target = ICMTarget( COMPRESSED_FEATURES_SIZE, ICM_OUTPUT_SIZE ).to(DEVICE)
+icm = ICM( COMPRESSED_FEATURES_SIZE, ACTION_SIZE, ICM_OUTPUT_SIZE ).to(DEVICE)
+icm_optimizer = optim.Adam( icm.parameters(), lr=ICM_LR, weight_decay=1e-4 )
 
-if os.path.isfile(CHECKPOINT_MODEL):
-    cnn.load_state_dict(torch.load(CHECKPOINT_CNN))
-    model.load_state_dict(torch.load(CHECKPOINT_MODEL))
-    target.load_state_dict(torch.load(CHECKPOINT_MODEL))
-    rnd_target.load_state_dict(torch.load(CHECKPOINT_RND_TARGET))
-    rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
+encoder = Encoder(COMPRESSED_FEATURES_SIZE).to(DEVICE)
+decoder = Decoder(COMPRESSED_FEATURES_SIZE).to(DEVICE)
+vae_optimizer = optim.Adam( list(encoder.parameters()) + list(decoder.parameters()), lr=VAE_LR, weight_decay=1e-4 )
+
+ddqn_model = DDQN( COMPRESSED_FEATURES_SIZE, ACTION_SIZE ).to(DEVICE)
+ddqn_target = DDQN( COMPRESSED_FEATURES_SIZE, ACTION_SIZE ).to(DEVICE)
+ddqn_optimizer = optim.Adam( list(ddqn_model.parameters()) + list(encoder.parameters()), lr=DDQN_LR, weight_decay=1e-4 )
+
+
+encoder.load(CHECKPOINT_ENCODER, DEVICE)
+decoder.load(CHECKPOINT_DECODER, DEVICE)
+ddqn_model.load(CHECKPOINT_DDQN, DEVICE)
+ddqn_target.load(CHECKPOINT_DDQN, DEVICE)
+icm_target.load(CHECKPOINT_ICM_TARGET, DEVICE)
+icm.load(CHECKPOINT_ICM, DEVICE)
 
 
 memory = UnusualMemory(BUFFER_SIZE, BATCH_SIZE)
@@ -89,87 +102,64 @@ memory = UnusualMemory(BUFFER_SIZE, BATCH_SIZE)
 # memory = PrioritizedMemory(BUFFER_SIZE, BATCH_SIZE)
 
 
-agent = Agent(DEVICE, cnn, model, action_size)
+agent = Agent(DEVICE, encoder, ddqn_model, ACTION_SIZE)
 optimizer = Optimizer(
     DEVICE, 
     memory,
-    cnn, model, target, optimizer, 
-    rnd_target, rnd_predictor, rnd_optimizer,
-    ALPHA, GAMMA, TAU, UPDATE_EVERY, BUFFER_SIZE, BATCH_SIZE)
+    encoder, decoder, ddqn_model, ddqn_target, icm_target, icm,
+    vae_optimizer, ddqn_optimizer, icm_optimizer,
+    ACTION_SIZE, BATCH_SIZE,
+    VAE_SAMPLES, COMPRESSED_FEATURES_SIZE,
+    ALPHA, GAMMA, TAU, UPDATE_EVERY)
 
 
-# vsI = VisdomI()
+imgToTensor = transforms.ToTensor()
+tensorToImg = transforms.ToPILImage()
 
-# t_steps = 500
-_steps = 0
-n_frames = 4
-resize_dim = ( 60, 64 ) # 240 x 256 / 4
 
-_steps = 0
+steps = 0
 n_episodes = 300
-track = False
-
-def state_resize_n_to_gray_scale(state, dim):
-    t_state = cv.resize( state, dim, interpolation = cv.INTER_AREA )
-    t_state = cv.cvtColor( t_state, cv.COLOR_BGR2GRAY )
-
-    return t_state
 
 for episode in range(n_episodes):
 
-    total_reward = 0
+    total_reward = 0    
+    state = env.reset()    
+    state = Image.fromarray(state)
+    state = imgToTensor(state).cpu().data.numpy()    
+    
+    while True:        
 
-    state = deque(maxlen=n_frames)
-
-    t_state = env.reset()
-    state.append( state_resize_n_to_gray_scale( t_state, resize_dim ) )
-
-    for frame in range(n_frames - 1):
-        action = env.action_space.sample()
-        next_state, _, _, _ = env.step(action)
-
-        state.append( state_resize_n_to_gray_scale( next_state, resize_dim ) )
-
-    while True:
-    # for t in range(t_steps):
-
-        # action = env.action_space.sample()
+        # action = env.action_space.sample()        
         action = agent.act( state, EPSILON )
 
-        next_state, reward, done, info = env.step(action)        
-
-        next_state = state_resize_n_to_gray_scale( next_state, resize_dim)
-        t_state = state.copy()
-        t_state.append( next_state )
-
-        loss, rnd_loss = optimizer.step(state, action, reward, t_state, done)
+        next_state, reward, done, info = env.step(action)
+        next_state = Image.fromarray(next_state)
+        next_state = imgToTensor(next_state).cpu().data.numpy()    
+        
+        icm_loss, vae_loss, ddqn_loss, encoder_check = optimizer.step(state, action, reward, next_state, done)
 
         env.render()
 
         total_reward += reward                
-        reward_inverse_dist = memory.rewards_distribution()
-        
 
-        if _steps % 100 == 0:
-            reward_inverse_dist = dict(sorted(reward_inverse_dist.items(), key=lambda kv: kv[0]))
-            rd_str = 'DR => '
-            for k, value in reward_inverse_dist.items():
-                rd_str += ' {}: {:.3f} |'.format(k, value)
-            
-            system('cls')
-            print('\rE: {} St: {} TR: {} R: {} L: {:.3f} RL: {:.3f} | {}'
-                .format( episode + 1, _steps, total_reward, reward, loss, rnd_loss, rd_str ), end='')    
+        print('\rE: {} S: {} TR: {} R: {} ICM: {:.3f} VAE: {:.3f} DDQN: {:.3f}'
+            .format( episode + 1, steps, total_reward, reward, icm_loss, vae_loss, ddqn_loss ), end='')
 
+        if steps % 100 == 0:                                                           
+            if encoder_check:
+                for i, img in enumerate(encoder_check[0]):
+                    tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))
 
         if done:
             break
 
-        state.append( next_state )
-        _steps += 1
+        state = next_state
+        steps += 1
 
-    cnn.checkpoint(CHECKPOINT_CNN)    
-    model.checkpoint(CHECKPOINT_MODEL)
-    rnd_target.checkpoint(CHECKPOINT_RND_TARGET)
-    rnd_predictor.checkpoint(CHECKPOINT_RND_PREDICTOR)
+    encoder.checkpoint(CHECKPOINT_ENCODER)
+    decoder.checkpoint(CHECKPOINT_DECODER)
+    ddqn_model.checkpoint(CHECKPOINT_DDQN)
+    icm_target.checkpoint(CHECKPOINT_ICM_TARGET)
+    icm.checkpoint(CHECKPOINT_ICM)
 
 env.close()

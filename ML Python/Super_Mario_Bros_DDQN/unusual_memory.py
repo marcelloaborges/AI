@@ -57,7 +57,7 @@ class UnusualMemory:
     def sample_inverse_dist(self):                         
         rewards_inverse_distribution = self.rewards_inverse_distribution()
 
-        # PRIORITIZING THE UNUSUAL EXPERIENCES
+        # PRIORITIZING UNUSUAL EXPERIENCES
 
         samples = []        
         rewards = [ k for k, v in rewards_inverse_distribution.items() ]

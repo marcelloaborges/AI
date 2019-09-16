@@ -21,13 +21,10 @@ class Memory:
 
         self.memory.append(e)
 
-    def _enougth_samples(self):
+    def enougth_samples(self):
         return len( self.memory ) >= self.BATCH_SIZE
 
-    def sample(self):        
-        if not self._enougth_samples():            
-            return None
-        
+    def sample(self):
         samples = random.sample( self.memory, k=self.BATCH_SIZE )        
 
         states      = []

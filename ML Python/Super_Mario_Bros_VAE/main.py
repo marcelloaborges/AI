@@ -1,12 +1,13 @@
 import os
 from os import system
-import cv2
 import random
+from PIL import Image
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+from torchvision import models, transforms
 from torch.utils.tensorboard import SummaryWriter
 
 from model import Encoder, Decoder
@@ -19,9 +20,10 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 DATA_FILES = './data/frame_resized'
 
 BATCH_SIZE = 32
-COMPRESSED_FEATURES_SIZE = 1024
-SAMPLES = 8
+COMPRESSED_FEATURES_SIZE = 256
+SAMPLES = 4
 LR = 1e-3
+CICLICAL_B_STEPS = 1000
 
 
 encoder = Encoder(COMPRESSED_FEATURES_SIZE).to(DEVICE)
@@ -49,45 +51,53 @@ def reparameterize(mu, logvar):
 
 
 files = os.listdir( DATA_FILES )
-files_img = []
-for file in files:
-    file_name = os.path.join(DATA_FILES, file) 
-    files_img.append(
-        np.array( cv2.imread(file_name) ).T / 255
-    )
 
-epochs = 500
-for epoch in range(epochs):     
+B_step = 0
+hold_B = False
+epochs = 100
+step = 0
 
-    r_files_img = files_img.copy()
-    random.shuffle(r_files_img)
+imgToTensor = transforms.ToTensor()
+tensorToImg = transforms.ToPILImage()
+for epoch in range(epochs):
+    
+    r_files = files.copy()
+    random.shuffle(r_files)        
 
-    average_loss = []
-    step = 0
-
-    while r_files_img:
+    while r_files:
         
-        k = BATCH_SIZE if BATCH_SIZE < len(r_files_img) else len(r_files_img)
-        batch_img = random.sample( r_files_img, k=k )
+        k = BATCH_SIZE if BATCH_SIZE < len(r_files) else len(r_files)
+        batch_files = random.sample( r_files, k=k )
 
-        for file in batch_img:
-            r_files_img.remove(file)                
+        batch_img = []
+        for file in batch_files:
+            file_name = os.path.join(DATA_FILES, file)             
+            img_pil = Image.open(file_name)
+            img_tensor = imgToTensor(img_pil).float().to(DEVICE)
+            batch_img.append(
+                img_tensor
+            )
+
+        for file in batch_files:
+            r_files.remove(file)                
 
         # encoder
-        batch_img = torch.from_numpy( np.array(batch_img) ).float().to(DEVICE) 
+        batch_img = torch.stack( batch_img )
         mu, logvar = encoder( batch_img )
 
-        z = reparameterize( mu, logvar )
+        zs = reparameterize( mu, logvar )
 
         # decoder
-        decoded = [ decoder( z ) for z in z ]
+        decoded = [ decoder( z ) for z in zs ]
 
         # cost function            
 
         # how well do input x and output recon_x agree?    
         MSE = 0
         for recon_x in decoded:
-            MSE += F.mse_loss( recon_x, batch_img )
+            # MSE += F.mse_loss( recon_x.reshape((-1, 3 * 240 * 256)), batch_img.reshape((-1, 3 * 240 * 256)) )
+            exp = ( batch_img.reshape((-1, 3, 240 * 256)) - recon_x.reshape((-1, 3, 240 * 256)) ) ** 2
+            MSE += ( ( exp ).sum(dim=2) ).mean()
         MSE /= SAMPLES * BATCH_SIZE
 
 
@@ -102,9 +112,10 @@ for epoch in range(epochs):
         # note the negative D_{KL} in appendix B of the paper
         KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         # Normalise by same number of elements as in reconstruction
-        KLD /= BATCH_SIZE * 256 * 240
+        KLD /= BATCH_SIZE * COMPRESSED_FEATURES_SIZE
 
 
+        # L2 regularization
         l2_factor = 1e-6
         
         l2_encoder_reg = None
@@ -126,7 +137,15 @@ for epoch in range(epochs):
         l2_decoder_reg = l2_decoder_reg * l2_factor
 
 
-        loss = MSE + KLD + l2_encoder_reg + l2_decoder_reg
+        # ciclical B
+        B = B_step / CICLICAL_B_STEPS if not hold_B else 1
+        if B_step == CICLICAL_B_STEPS:
+            hold_B = not hold_B
+            B_step = 0
+
+
+        # final loss
+        loss = MSE + (B * KLD) + l2_encoder_reg + l2_decoder_reg
 
         # backward    
         optimizer.zero_grad()
@@ -135,52 +154,48 @@ for epoch in range(epochs):
 
         if step % 100 == 0:
             system('cls')
-            print('\r Epoch:{} | Step:{} | Loss: {:.5f}'.format( epoch, step, loss.item() ), end='')
-
-            average_loss.append( loss.item() )
+            print('\r Epoch:{} | Step:{} | B_Step: {} | B: {:.2f} | Loss: {:.5f}, MSE: {:.5F}, KLD: {:.5F}'.format( epoch, step, B_step, B, loss.item(), MSE.item(), KLD.item() ), end='')
 
             for i, img in enumerate(decoded[0]):
-                cv2.imwrite( 'test/{}.jpg'.format(i), img.squeeze(0).cpu().data.numpy().T * 255 )
+                tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))
 
+            # generating visualizations        
+
+            # test file
+            test_file_name = os.path.join(DATA_FILES, 'frame240.jpg') 
+            img_pil = Image.open(test_file_name)
+
+            # encoder
+            test_img = imgToTensor(img_pil).float().unsqueeze(0).to(DEVICE)
+            mu, logvar = encoder( test_img )
+
+            zs = reparameterize( mu, logvar )
+
+            # decoder
+            decoded = decoder( zs[0] )
+
+            # adding tensorboard
+            tb.add_scalar('loss', loss.item(), step )
+            tb.add_scalar('MSE', MSE.item(), step )
+            tb.add_scalar('KLD', KLD.item(), step )
+            tb.add_image('encoder_input', test_img.squeeze(0), step)
+            tb.add_image('decoder_output', decoded.squeeze(0), step)
+
+            tb.add_histogram('encoder_conv1.bias', encoder.conv1.bias, step)
+            tb.add_histogram('encoder_conv1.bias.grad', encoder.conv1.bias.grad, step)
+            tb.add_histogram('encoder_conv1.weight', encoder.conv1.weight, step)
+            tb.add_histogram('encoder_conv1.weight.grad', encoder.conv1.weight.grad, step)
+
+            tb.add_histogram('decoder.conv1.bias', decoder.conv_t1.bias, step)
+            tb.add_histogram('decoder.conv1.bias.grad', decoder.conv_t1.bias.grad, step)
+            tb.add_histogram('decoder.conv1.weight', decoder.conv_t1.weight, step)
+            tb.add_histogram('decoder.conv1.weight.grad', decoder.conv_t1.weight.grad, step)
+
+        B_step += 1
         step += 1
 
     # saving models
     encoder.checkpoint('encoder.pth')
-    decoder.checkpoint('decoder.pth')
-
-    # generating visualizations
-    tb.add_scalar('average_loss', np.average( average_loss ), epoch )
-
-    tb.add_histogram('encoder_conv1.bias', encoder.conv1.bias, epoch)
-    tb.add_histogram('encoder_conv1.weight', encoder.conv1.weight, epoch)
-    tb.add_histogram('encoder_conv1.weight.grad', encoder.conv1.weight.grad, epoch)
-
-    tb.add_histogram('encoder_conv2.bias', encoder.conv2.bias, epoch)
-    tb.add_histogram('encoder_conv2.weight', encoder.conv2.weight, epoch)
-    tb.add_histogram('encoder_conv2.weight.grad', encoder.conv2.weight.grad, epoch)
-
-    tb.add_histogram('encoder_conv3.bias', encoder.conv3.bias, epoch)
-    tb.add_histogram('encoder_conv3.weight', encoder.conv3.weight, epoch)
-    tb.add_histogram('encoder_conv3.weight.grad', encoder.conv3.weight.grad, epoch)
-
-    tb.add_histogram('encoder_conv4.bias', encoder.conv4.bias, epoch)
-    tb.add_histogram('encoder_conv4.weight', encoder.conv4.weight, epoch)
-    tb.add_histogram('encoder_conv4.weight.grad', encoder.conv4.weight.grad, epoch)
-
-    tb.add_histogram('encoder_fc11.bias', encoder.fc11.bias, epoch)
-    tb.add_histogram('encoder_fc11.weight', encoder.fc11.weight, epoch)
-    tb.add_histogram('encoder_fc11.weight.grad', encoder.fc11.weight.grad, epoch)
-
-    tb.add_histogram('encoder_fc12.bias', encoder.fc12.bias, epoch)
-    tb.add_histogram('encoder_fc12.weight', encoder.fc12.weight, epoch)
-    tb.add_histogram('encoder_fc12.weight.grad', encoder.fc12.weight.grad, epoch)
-
-    tb.add_histogram('encoder_fc21.bias', encoder.fc21.bias, epoch)
-    tb.add_histogram('encoder_fc21.weight', encoder.fc21.weight, epoch)
-    tb.add_histogram('encoder_fc21.weight.grad', encoder.fc21.weight.grad, epoch)
-
-    tb.add_histogram('encoder_fc22.bias', encoder.fc22.bias, epoch)
-    tb.add_histogram('encoder_fc22.weight', encoder.fc22.weight, epoch)
-    tb.add_histogram('encoder_fc22.weight.grad', encoder.fc22.weight.grad, epoch)
+    decoder.checkpoint('decoder.pth')    
 
 tb.close()

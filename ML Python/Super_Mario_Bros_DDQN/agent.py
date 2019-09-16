@@ -1,38 +1,47 @@
-import torch
 import numpy as np
 import random
+
+import torch
 
 class Agent:
 
     def __init__(
         self, 
         device,
-        cnn,
-        model,
+        encoder,
+        ddqn_model,
         actions_size
         ):
 
         self.DEVICE = device
 
         # NEURAL MODEL
-        self.cnn = cnn
-        self.model = model
+        self.encoder = encoder
+        self.ddqn_model = ddqn_model
 
         self.actions_size = actions_size
 
-    def act(self, state, eps=0.):
-        # state = torch.from_numpy(state.T.copy()).float().unsqueeze(0).to(self.DEVICE)
-        state = torch.from_numpy( np.stack(state) ).float().unsqueeze(0).to(self.DEVICE)
+    def _reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        eps = std.data.new(std.size()).normal_()
+        z = eps.mul(std).add_(mu)        
 
-        self.cnn.eval()
-        self.model.eval()
+        return z
+
+    def act(self, state, eps=0.):                
+        state = torch.tensor(state).float().unsqueeze(0).to(self.DEVICE)
+
+        self.encoder.eval()
+        self.ddqn_model.eval()
 
         with torch.no_grad():
-            state_flatten = self.cnn(state)
-            action_values = self.model(state_flatten)
+            mu, logvar = self.encoder(state)
+            encoded_state = self._reparameterize(mu, logvar)
 
-        self.cnn.train()
-        self.model.train()
+            action_values = self.ddqn_model(encoded_state)
+
+        self.encoder.train()
+        self.ddqn_model.train()
         
         if np.random.uniform() < eps:
             return random.choice(np.arange(self.actions_size))            
