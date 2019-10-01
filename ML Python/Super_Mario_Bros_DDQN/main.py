@@ -33,7 +33,9 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # PIXEL
 # env = gym_super_mario_bros.make('SuperMarioBros-v2')
 # ONLY FIRST STATE
-env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+# env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+# RANDOM STAGES
+env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
 
 env = JoypadSpace(env, SIMPLE_MOVEMENT)
 
@@ -48,10 +50,10 @@ print('actions len {}'.format(ACTION_SIZE))
 
 
 # hyperparameters
-BATCH_SIZE = 24
+BATCH_SIZE = 64
 
 # VAE
-COMPRESSED_FEATURES_SIZE = 256
+COMPRESSED_FEATURES_SIZE = 128
 VAE_SAMPLES = 4
 VAE_LR = 1e-3
 CICLICAL_B_STEPS = 1000
@@ -61,12 +63,12 @@ ALPHA = 1
 GAMMA = 0.9
 TAU = 1e-3
 UPDATE_EVERY = 16
-BUFFER_SIZE = int(1e3)
-DDQN_LR = 1e-3
+BUFFER_SIZE = int(1e4)
+DDQN_LR = 3e-4
 EPSILON = 0.05
 
 # ICM
-ICM_LR = 5e-3
+ICM_LR = 1e-3
 ICM_OUTPUT_SIZE = 64
 
 CHECKPOINT_ENCODER = './checkpoint_encoder.pth'
@@ -87,6 +89,7 @@ vae_optimizer = optim.Adam( list(encoder.parameters()) + list(decoder.parameters
 ddqn_model = DDQN( COMPRESSED_FEATURES_SIZE, ACTION_SIZE ).to(DEVICE)
 ddqn_target = DDQN( COMPRESSED_FEATURES_SIZE, ACTION_SIZE ).to(DEVICE)
 ddqn_optimizer = optim.Adam( list(ddqn_model.parameters()) + list(encoder.parameters()), lr=DDQN_LR, weight_decay=1e-4 )
+# ddqn_optimizer = optim.Adam( ddqn_model.parameters(), lr=DDQN_LR, weight_decay=1e-4 )
 
 
 encoder.load(CHECKPOINT_ENCODER, DEVICE)
@@ -116,6 +119,8 @@ optimizer = Optimizer(
 imgToTensor = transforms.ToTensor()
 tensorToImg = transforms.ToPILImage()
 
+img_w = int(256/4)
+img_h = int(240/4)
 
 steps = 0
 n_episodes = 300
@@ -124,36 +129,41 @@ for episode in range(n_episodes):
 
     total_reward = 0    
     state = env.reset()    
-    state = Image.fromarray(state)
+    state = Image.fromarray(state).resize( ( img_w, img_h ) )
     state = imgToTensor(state).cpu().data.numpy()    
+
+    hx = np.zeros( [1, 256] )
+    cx = np.zeros( [1, 256] )
     
     while True:        
 
         # action = env.action_space.sample()        
-        action = agent.act( state, EPSILON )
+        action, nhx, ncx = agent.act( state, hx, cx, EPSILON )
 
         next_state, reward, done, info = env.step(action)
-        next_state = Image.fromarray(next_state)
+        next_state = Image.fromarray(next_state).resize( ( img_w, img_h ) )
         next_state = imgToTensor(next_state).cpu().data.numpy()    
         
-        icm_loss, vae_loss, ddqn_loss, encoder_check = optimizer.step(state, action, reward, next_state, done)
+        icm_loss, vae_loss, ddqn_loss, encoder_check = optimizer.step(state, hx, cx, action, reward, next_state, nhx, ncx, done)
 
         env.render()
 
         total_reward += reward                
 
+        system('cls')
         print('\rE: {} S: {} TR: {} R: {} ICM: {:.3f} VAE: {:.3f} DDQN: {:.3f}'
             .format( episode + 1, steps, total_reward, reward, icm_loss, vae_loss, ddqn_loss ), end='')
 
-        if steps % 100 == 0:                                                           
-            if encoder_check:
-                for i, img in enumerate(encoder_check[0]):
-                    tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))
+        if steps > 0 and steps % 100 == 0:
+            for i, img in enumerate(encoder_check):
+                tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))
 
         if done:
             break
 
         state = next_state
+        hx = nhx
+        cx = ncx
         steps += 1
 
     encoder.checkpoint(CHECKPOINT_ENCODER)

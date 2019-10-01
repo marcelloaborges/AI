@@ -21,30 +21,30 @@ class Agent:
 
         self.actions_size = actions_size
 
-    def _reparameterize(self, mu, logvar):
-        std = logvar.mul(0.5).exp_()
-        eps = std.data.new(std.size()).normal_()
-        z = eps.mul(std).add_(mu)        
-
-        return z
-
-    def act(self, state, eps=0.):                
+    def act(self, state, hx, cx, eps=0.):                
         state = torch.tensor(state).float().unsqueeze(0).to(self.DEVICE)
+        hx    = torch.from_numpy( hx ).float().to(self.DEVICE)
+        cx    = torch.from_numpy( cx ).float().to(self.DEVICE)
 
         self.encoder.eval()
         self.ddqn_model.eval()
 
         with torch.no_grad():
-            mu, logvar = self.encoder(state)
-            encoded_state = self._reparameterize(mu, logvar)
+            encoded_state, _ = self.encoder(state)
 
-            action_values = self.ddqn_model(encoded_state)
+            action_values, nhx, ncx = self.ddqn_model(encoded_state, hx, cx)
 
         self.encoder.train()
         self.ddqn_model.train()
+
+        action_values = action_values.cpu().data.numpy()
+        nhx = nhx.cpu().data.numpy()
+        ncx = ncx.cpu().data.numpy()
         
+        action = None
         if np.random.uniform() < eps:
-            return random.choice(np.arange(self.actions_size))            
+            action = random.choice(np.arange(self.actions_size))            
         else:
-            action = np.argmax(action_values.cpu().data.numpy())
-            return action
+            action = np.argmax(action_values)
+            
+        return action, nhx, ncx

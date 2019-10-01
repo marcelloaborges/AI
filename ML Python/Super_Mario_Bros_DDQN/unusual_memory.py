@@ -10,13 +10,18 @@ class UnusualMemory:
         
         self.memory = deque(maxlen=buffer_size)
 
-    def add(self, state, action, reward, next_state, done):
+    def add(self, state, hx, cx, action, reward, next_state, nhx, ncx, done):
         """Add a new experience to memory."""
         e = {
+            'state' : state,
+            'hx' : hx,
+            'cx' : cx,
             'state' : state,
             'action' : action,
             'reward' : reward,
             'next_state' : next_state,
+            'nhx' : nhx,
+            'ncx' : ncx,
             'done' : done
         }
 
@@ -34,62 +39,88 @@ class UnusualMemory:
         samples = [ sorted_memory[idx] for idx in sample_idxs ] 
 
         states      = []
+        hx          = []
+        cx          = []
         actions     = []
         rewards     = []
         next_states = []
+        nhx         = []
+        ncx         = []
         dones       = []
 
         for exp in samples:                        
             states.append     ( exp['state']      )           
+            hx.append         ( exp['hx']         )           
+            cx.append         ( exp['cx']         )           
             actions.append    ( exp['action']     )
             rewards.append    ( exp['reward']     )
             next_states.append( exp['next_state'] )
+            nhx.append        ( exp['nhx']        )           
+            ncx.append        ( exp['ncx']        )           
             dones.append      ( exp['done']       )
 
         states      = np.array(states)
+        hx          = np.array(hx)
+        cx          = np.array(cx)
         actions     = np.array(actions)
         rewards     = np.array(rewards)
         next_states = np.array(next_states)
+        nhx         = np.array(nhx)
+        ncx         = np.array(ncx)
         dones       = np.array(dones)
 
-        return states, actions, rewards, next_states, dones
+        return states, hx, cx, actions, rewards, next_states, nhx, ncx, dones
 
     def sample_inverse_dist(self):                         
-        rewards_inverse_distribution = self.rewards_inverse_distribution()
+        rewards_inverse_distribution = self._rewards_inverse_distribution()
 
         # PRIORITIZING UNUSUAL EXPERIENCES
 
         samples = []        
         rewards = [ k for k, v in rewards_inverse_distribution.items() ]
         probs = [ v for k, v in rewards_inverse_distribution.items() ]
-        for _ in range( self.BATCH_SIZE ):
+        for _ in range( int(self.BATCH_SIZE / 2) ):
             r_chosen = random.choices( rewards, weights=probs )[0]
             reward_exp = [ exp for exp in self.memory if exp['reward'] == r_chosen ]
 
             samples.append( random.choice( reward_exp ) )
 
+        samples.extend( random.sample( self.memory, k = int(self.BATCH_SIZE / 2) ) )
+
         states      = []
+        hx          = []
+        cx          = []
         actions     = []
         rewards     = []
         next_states = []
+        nhx         = []
+        ncx         = []
         dones       = []
 
         for exp in samples:                        
             states.append     ( exp['state']      )           
+            hx.append         ( exp['hx']         )           
+            cx.append         ( exp['cx']         )           
             actions.append    ( exp['action']     )
             rewards.append    ( exp['reward']     )
             next_states.append( exp['next_state'] )
+            nhx.append        ( exp['nhx']        )           
+            ncx.append        ( exp['ncx']        )           
             dones.append      ( exp['done']       )
 
         states      = np.array(states)
+        hx          = np.array(hx)
+        cx          = np.array(cx)
         actions     = np.array(actions)
         rewards     = np.array(rewards)
         next_states = np.array(next_states)
+        nhx         = np.array(nhx)
+        ncx         = np.array(ncx)
         dones       = np.array(dones)
 
-        return states, actions, rewards, next_states, dones
+        return states, hx, cx, actions, rewards, next_states, nhx, ncx, dones
 
-    def rewards_distribution(self):
+    def _rewards_distribution(self):
         reward_freq = {}
 
         for exp in self.memory:
@@ -104,7 +135,7 @@ class UnusualMemory:
 
         return reward_dist
 
-    def rewards_inverse_distribution(self):
+    def _rewards_inverse_distribution(self):
         reward_inverse_freq = {}
 
         for exp in self.memory:
