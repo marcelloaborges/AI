@@ -100,7 +100,7 @@ def ddpg_train():
 
 
 # train the agent
-# ddpg_train()
+ddpg_train()
 
 # test the trained agent
 agent = Agent(

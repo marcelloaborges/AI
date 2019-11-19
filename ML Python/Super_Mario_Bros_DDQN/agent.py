@@ -43,7 +43,7 @@ class Agent:
         
         action = None
         if np.random.uniform() < eps:
-            action = random.choice(np.arange(self.actions_size))            
+            action = random.choice(np.arange(self.actions_size))
         else:
             action = np.argmax(action_values)
             

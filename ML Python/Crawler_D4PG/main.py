@@ -160,7 +160,7 @@ def maddpg_train():
 
 
 # train the agent
-maddpg_train()
+# maddpg_train()
 
 
 n_episodes = 50
@@ -175,11 +175,11 @@ for episode in range(n_episodes):
     steps = 0
 
     while True:
-        # n_actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
-        # n_actions = np.clip(n_actions, -1, 1)                  # all actions between -1 and 1
-        actions = agent.act( states ) 
+        n_actions = np.random.randn(num_agents, action_size) # select an action (for each agent)
+        n_actions = np.clip(n_actions, -1, 1)                  # all actions between -1 and 1
+        # actions = agent.act( states ) 
 
-        env_info = env.step(actions)[brain_name]           # send all actions to tne environment
+        env_info = env.step(n_actions)[brain_name]           # send all actions to tne environment
         next_states = env_info.vector_observations         # get next state (for each agent)
         rewards = env_info.rewards                         # get reward (for each agent)
         dones = env_info.local_done                        # see if episode finished                
