@@ -1,15 +1,20 @@
 import os
 import numpy as np
-
-import time
-import random
+from collections import deque
 
 import torch
 import torch.optim as optim
 
+from torchvision import models, transforms
+
+from PIL import Image
+
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+
+from agent import Agent
+
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -36,73 +41,100 @@ print('states len {}'.format(state_info.shape))
 print('actions len {}'.format(action_size))
 
 
-# hyperparameters
-ALPHA = 1
-GAMMA = 0.9
-TAU = 3e-2
-UPDATE_EVERY = 16
-BUFFER_SIZE = int(5e3)
-BATCH_SIZE = 32
-LR = 5e-4
+# STATE UTILS
+imgToTensor = transforms.ToTensor()
+tensorToImg = transforms.ToPILImage()
+
+state_example = env.reset()
+
+img_h = int(state_example.shape[0]/4)
+img_w = int(state_example.shape[1]/4)
+
+
+# HYPERPARAMETERS
 EPSILON = 0.05
 
-RND_LR = 5e-5
-RND_OUTPUT_SIZE = 128
-RND_UPDATE_EVERY = 32
+FRAME_SEQ = 8
+COMPRESSED_FEATURES_SIZE = 128
 
-CHECKPOINT_CNN = './checkpoint_cnn.pth'
-CHECKPOINT_MODEL = './checkpoint_model.pth'
-CHECKPOINT_RND_TARGET = './checkpoint_rnd_target.pth'
-CHECKPOINT_RND_PREDICTOR = './checkpoint_rnd_predictor.pth'
+LR = 1e-4
+BUFFER_SIZE = int(1e5)
+BATCH_SIZE = 128
+UPDATE_EVERY = 8
 
-t_steps = 50
-_steps = 0
-n_episodes = 1
-track = False
+VAE_SAMPLES = 4
+
+GAMMA = 0.99
+TAU = 1e-1
+
+
+CHECKPOINT_FOLDER = './'
+
+
+# AGENT
+agent = Agent(DEVICE, 
+    FRAME_SEQ, COMPRESSED_FEATURES_SIZE, action_size, 
+    LR,
+    BUFFER_SIZE, 
+    UPDATE_EVERY, BATCH_SIZE, 
+    VAE_SAMPLES,    
+    img_w, img_h,
+    GAMMA, TAU,
+    CHECKPOINT_FOLDER )
+
+# TRAIN
+n_episodes = 1000
 
 for episode in range(n_episodes):
+    
+    total_reward = 0    
+    state = env.reset()
 
-    total_reward = 0
-    life = 2
+    # STACK THE INITIAL FRAME TO BEGIN THE EPISODE
+    state = Image.fromarray(state).resize( ( img_h, img_w ) )
+    state = transforms.functional.to_grayscale(state)
+    # tensorToImg( imgToTensor(state)).save('check1.jpg')
+    state = imgToTensor(state).squeeze(0).cpu().data.numpy()    
+
+    state_frames = deque(maxlen=FRAME_SEQ)
+    for i in range(FRAME_SEQ):
+        state_frames.append(state)
+
 
     state = env.reset()
 
-    # while True:    
-    for t in range(t_steps):
+    while True:        
+        # action = env.action_space.sample()        
 
-        # action = env.action_space.sample()
-        # action = agent.act( state, EPSILON )
+        action = agent.act( state_frames, EPSILON )        
 
-        # 50 frames p/ action
-        # actions for very simple movement
-        # SIMPLE_MOVEMENT = [
-        # 0    ['NOOP'],
-        # 1    ['right'],
-        # 2    ['right', 'A'],
-        # 3    ['right', 'B'],
-        # 4    ['right', 'A', 'B'],
-        # 6    ['A'], 
-        # 7    ['left'],
-        # ]            
-        
-        # action = random.choice([1, 4, 2, 4, 2])
-        next_state, reward, done, info = env.step(2)
+        next_state, reward, done, info = env.step(action)
 
-        print(t)
-        time.sleep(.1)
+        next_state = Image.fromarray(next_state).resize( ( img_h, img_w ) )
+        next_state = transforms.functional.to_grayscale(next_state)
+        # tensorToImg( imgToTensor(state)).save('check2.jpg')
+        next_state = imgToTensor(next_state).squeeze(0).cpu().data.numpy()    
+
+        temp_state_frames = state_frames.copy()
+        temp_state_frames.append( next_state )
+
+        vae_loss, dqn_loss, encoder_check = agent.step( state_frames, action, reward, temp_state_frames, done )
 
         env.render()
 
         total_reward += reward
 
         if done:
-            break
+            agent.checkpoint()
 
-        if info['life'] < life:
-            total_reward = 0
-            life = info['life']
+            if encoder_check:
+                for i, img in enumerate(encoder_check[0]):
+                    tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))        
 
-        state = next_state
-        t_steps += 1
+            break        
+
+        state_frames.append(next_state)
+        
+        print('\rE: {} TR: {} R: {} VL: {:.5f} QL: {:.5f}'.format( episode + 1, total_reward, reward, vae_loss, dqn_loss ), end='')
 
 env.close()

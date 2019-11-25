@@ -11,7 +11,7 @@ def layer_init(layer, w_scale=1.0):
     return layer
 
 class Encoder(nn.Module):
-    def __init__(self, compressed_features_size=64, channels=1, img_rows=60, img_cols=64, fc_units=128):
+    def __init__(self, compressed_features_size=32, channels=1, img_rows=60, img_cols=64, fc_units=128):
         super(Encoder, self).__init__()
 
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=4, stride=2, padding=1)
@@ -23,7 +23,7 @@ class Encoder(nn.Module):
         self.fc12 = nn.Linear( fc_units, compressed_features_size )
 
         self.fc21 = nn.Linear( self.flatten_size, fc_units ) 
-        self.fc22 = nn.Linear( fc_units, compressed_features_size )        
+        self.fc22 = nn.Linear( fc_units, compressed_features_size )
 
     def forward(self, state):        
         x = self.conv1(state)
