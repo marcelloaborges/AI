@@ -11,7 +11,7 @@ from PIL import Image
 
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT, RIGHT_ONLY
 
 from agent import Agent
 
@@ -29,7 +29,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # RANDOM STAGES
 env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
 
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
+env = JoypadSpace(env, RIGHT_ONLY)
 
 state_info = env.reset()
 action_info = env.action_space.sample()
@@ -47,25 +47,23 @@ tensorToImg = transforms.ToPILImage()
 
 state_example = env.reset()
 
-img_h = int(state_example.shape[0]/4)
-img_w = int(state_example.shape[1]/4)
+img_h = int(state_example.shape[0]/3)
+img_w = int(state_example.shape[1]/3)
 
 
 # HYPERPARAMETERS
 EPSILON = 0.05
 
-FRAME_SEQ = 8
-COMPRESSED_FEATURES_SIZE = 128
+FRAME_SEQ = 4
 
 LR = 1e-4
-BUFFER_SIZE = int(1e5)
-BATCH_SIZE = 128
-UPDATE_EVERY = 8
+BUFFER_SIZE = int(5e6)
+BATCH_SIZE = 8192
+FRAME_SKIP = 4
+UPDATE_EVERY = 4
 
-VAE_SAMPLES = 4
-
-GAMMA = 0.99
-TAU = 1e-1
+GAMMA = 0.95
+TAU = 1e-3
 
 
 CHECKPOINT_FOLDER = './'
@@ -73,12 +71,10 @@ CHECKPOINT_FOLDER = './'
 
 # AGENT
 agent = Agent(DEVICE, 
-    FRAME_SEQ, COMPRESSED_FEATURES_SIZE, action_size, 
+    FRAME_SEQ, action_size, 
     LR,
     BUFFER_SIZE, 
-    UPDATE_EVERY, BATCH_SIZE, 
-    VAE_SAMPLES,    
-    img_w, img_h,
+    FRAME_SKIP, UPDATE_EVERY, BATCH_SIZE,
     GAMMA, TAU,
     CHECKPOINT_FOLDER )
 
@@ -118,23 +114,19 @@ for episode in range(n_episodes):
         temp_state_frames = state_frames.copy()
         temp_state_frames.append( next_state )
 
-        vae_loss, dqn_loss, encoder_check = agent.step( state_frames, action, reward, temp_state_frames, done )
+        loss = agent.step( state_frames, action, reward, temp_state_frames, done )
 
         env.render()
 
         total_reward += reward
 
         if done:
-            agent.checkpoint()
-
-            if encoder_check:
-                for i, img in enumerate(encoder_check[0]):
-                    tensorToImg(img.cpu()).save('test/{}.jpg'.format(i))        
+            agent.checkpoint()            
 
             break        
 
         state_frames.append(next_state)
         
-        print('\rE: {} TR: {} R: {} VL: {:.5f} QL: {:.5f}'.format( episode + 1, total_reward, reward, vae_loss, dqn_loss ), end='')
+        print('\rE: {} TR: {} R: {} L: {:.15f}'.format( episode + 1, total_reward, reward, loss ), end='')
 
 env.close()
