@@ -201,29 +201,27 @@ class Attention(nn.Module):
         self.pool_pre_attention = nn.MaxPool2d( 2, 2 )
 
         # Attention
-        self.WQs = []
-        self.WKs = []
-        self.WVs = []
-
-        for _ in range(self.attention_heads):
-            self.WQs.append(
-                nn.Conv2d( 
-                    in_channels=self.filters_size, 
-                    out_channels=self.filters_size, 
-                    kernel_size=3, padding=1 )
-            )
-            self.WKs.append(
-                nn.Conv2d( 
-                    in_channels=self.filters_size, 
-                    out_channels=self.filters_size, 
-                    kernel_size=3, padding=1 )
-            )
-            self.WVs.append(
-                nn.Conv2d( 
-                    in_channels=self.filters_size, 
-                    out_channels=self.filters_size, 
-                    kernel_size=3, padding=1 )
-            )        
+        self.WQs = nn.ModuleList( [ 
+            nn.Conv2d( 
+                in_channels=self.filters_size, 
+                out_channels=self.filters_size, 
+                kernel_size=3, padding=1 )
+            for _  in range( self.attention_heads )
+        ] )
+        self.WKs = nn.ModuleList( [ 
+            nn.Conv2d( 
+                in_channels=self.filters_size, 
+                out_channels=self.filters_size, 
+                kernel_size=3, padding=1 )
+            for _  in range( self.attention_heads )
+        ] )
+        self.WVs = nn.ModuleList( [ 
+            nn.Conv2d( 
+                in_channels=self.filters_size, 
+                out_channels=self.filters_size, 
+                kernel_size=3, padding=1 )
+            for _  in range( self.attention_heads )
+        ] )
 
         self.Out_W = nn.Conv2d( in_channels=self.filters_size, out_channels=self.filters_size, kernel_size=3, padding=1 )
 
@@ -279,7 +277,7 @@ class Attention(nn.Module):
         dims = x.shape
 
         # WQ, WK, WV
-        Q = WQ( x ) 
+        Q = WQ( x )
         K = WK( x ) 
         V = WV( x )
 

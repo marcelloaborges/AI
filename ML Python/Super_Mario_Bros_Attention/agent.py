@@ -37,8 +37,8 @@ class Agent:
         self.TAU = tau             
 
         # NEURAL MODEL
-        self.model = Attention(action_size, channels, 128, 64)
-        self.target_model = Attention(action_size, channels, 128, 64)
+        self.model = Attention(action_size, channels, 128, 64).to(self.DEVICE)
+        self.target_model = Attention(action_size, channels, 128, 64).to(self.DEVICE)
 
         self.optimizer = optim.Adam( self.model.parameters(), lr=lr )
 
