@@ -25,9 +25,9 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # PIXEL
 # env = gym_super_mario_bros.make('SuperMarioBros-v2')
 # ONLY FIRST STATE
-# env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
 # RANDOM STAGES
-env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
+# env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
 
 env = JoypadSpace(env, RIGHT_ONLY)
 
@@ -58,9 +58,9 @@ FRAME_SEQ = 4
 
 LR = 1e-4
 BUFFER_SIZE = int(1e6)
-BATCH_SIZE = 256
+BATCH_SIZE = 64
 FRAME_SKIP = 4
-UPDATE_EVERY = 32
+UPDATE_EVERY = 4
 
 GAMMA = 0.95
 TAU = 1e-3

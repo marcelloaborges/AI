@@ -37,8 +37,8 @@ class Agent:
         self.TAU = tau             
 
         # NEURAL MODEL
-        self.model = Attention(action_size, channels, 128, 64).to(self.DEVICE)
-        self.target_model = Attention(action_size, channels, 128, 64).to(self.DEVICE)
+        self.model = Attention(action_size, channels, 256, 64).to(self.DEVICE)
+        self.target_model = Attention(action_size, channels, 256, 64).to(self.DEVICE)
 
         self.optimizer = optim.Adam( self.model.parameters(), lr=lr )
 
@@ -110,7 +110,7 @@ class Agent:
             Q_target_next = self.target_model(next_states)
             Q_target_next = Q_target_next.max(1)[0]
             
-            Q_target = self.GAMMA * Q_target_next * (1 - dones)
+            Q_target = rewards + self.GAMMA * Q_target_next * (1 - dones)
         
         Q_value = self.model(states)
         Q_value = Q_value.gather(1, actions.unsqueeze(1)).squeeze(1)
