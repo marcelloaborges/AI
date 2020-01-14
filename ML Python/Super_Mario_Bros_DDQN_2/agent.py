@@ -7,8 +7,8 @@ import torch.nn.functional as F
 
 from model import Model
 
-from unusual_memory import UnusualMemory
-# from memory import Memory
+# from unusual_memory import UnusualMemory
+from memory import Memory
 
 class Agent:
 
@@ -44,8 +44,8 @@ class Agent:
         self.optimizer = optim.RMSprop( self.model.parameters(), lr=lr )
 
         # MEMORY
-        self.memory = UnusualMemory(buffer_size)        
-        # self.memory = Memory(buffer_size)        
+        # self.memory = UnusualMemory(buffer_size)        
+        self.memory = Memory(buffer_size)        
 
         # LOAD CHECKPOING
         self.CHECKPOINT_MODEL = checkpoint_folder + 'CHECKPOINT.pth'
@@ -95,8 +95,8 @@ class Agent:
         return self.loss
 
     def _learn(self):
-        states, actions, rewards, next_states, dones = self.memory.sample_inverse_dist(self.BATCH_SIZE)
-        # states, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)
+        # states, actions, rewards, next_states, dones = self.memory.sample_inverse_dist(self.BATCH_SIZE)
+        states, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)
 
         states      = torch.from_numpy( states                 ).float().to(self.DEVICE)
         actions     = torch.from_numpy( actions                ).long().to(self.DEVICE).squeeze(0)        

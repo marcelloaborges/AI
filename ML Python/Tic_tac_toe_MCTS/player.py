@@ -1,18 +1,19 @@
 from monte_carlo_tree_search import MonteCarloTreeSearch
+import numpy as np
 
 class Player:
 
-    def __init__(self, action_size = 9, rollout_size = 5, simulation_size = 5):
+    def __init__(self, mark, action_size = 9, rollout_steps = 50, simulation_steps = 5):
 
-        self.mcts = MonteCarloTreeSearch( action_size, rollout_size, simulation_size)        
+        self.mark = mark
+        self.mcts = MonteCarloTreeSearch( mark, action_size, rollout_steps, simulation_steps )
 
-    def act(self, state):                
-        action = self.mcts.choose(state)
+    def act(self, env):
+        action = self.mcts.act(env)
         
         return action
 
-    def step(self, env, s):
+    def step(self, env):
+        action = self.mcts.step(env)
         
-        a = self.mcts.step(env, s)
-        
-        return a
+        return action

@@ -9,21 +9,19 @@ class TicTacToe:
 
         #  1: X 
         # -1: O
-        #  0: None
-        self.current_player = 1
+        #  0: None        
         self.winner = 0 
-        self.done = False
-
-        self.games = 0
+        self.done = False        
+        
         self.board = []
 
-    def print_board(self):
-        print('-------------------------')           
-        print('GAME: {}'.format(self.games) )
+    def print_board(self, game=0):
+        print('-------------------------')
+        print('GAME: {}'.format(game) )
         print('-----')              
         for i in range(0, self.LENGTH * self.LENGTH):           
             # print('X', end='', flush=True)
-            print( '{}'.format((i+1)) if self.board[i] == 0 else 'X' if self.board[i] == 1 else 'O', end='', flush=True)            
+            print( '{}'.format(' ') if self.board[i] == 0 else 'X' if self.board[i] == 1 else 'O', end='', flush=True)            
 
             if (i + 1) % self.LENGTH == 0:
                 print()
@@ -98,43 +96,30 @@ class TicTacToe:
         return True
 
     def _update_done(self):
-        self.done = False 
         if self.check_win(1): # X
-            self.done = True            
+            self.winner = 1
+            self.done = True
         if self.check_win(-1): # O
+            self.winner = -1
             self.done = True 
         if self.check_draw(): # 0
             self.done = True
 
-    def reset(self):
+    def reset(self, current_player_mark):
+        self.winner = 0 
+        self.done = False
+
         self.board = np.array([
         0, 0, 0,
         0, 0, 0,
         0, 0, 0,
+        current_player_mark
         ])
-        self.games += 1
-        self.winner = 0
-        self.done = False
 
-        return self.board    
-
-    def step(self, position):
-        self.board[position] = self.current_player
+    def step(self, mark, position):
+        # action
+        self.board[position] = mark
+        # current_player
+        self.board[-1] = mark * -1
 
         self._update_done()
-
-        s_ = self.board
-
-        r = 0
-        if self.done:
-            if self.winner == 0:
-                r = 0.5
-            else:
-                if self.winner == self.current_player:
-                    r = 1
-                if self.winner != self.current_player:
-                    r = -1
-
-        self.current_player *= -1
-        
-        return r, s_, self.done 
