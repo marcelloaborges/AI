@@ -31,16 +31,17 @@ class Trainer:
         feed_poly = self.feature_poly.fit_transform(feed)
         test_predictions = self.regressor.predict(feed_poly)
                 
-        loss = mse_loss(target, test_predictions)
+        loss = mse_loss(target, test_predictions)        
+        
+        for i, test in enumerate(test_predictions):
+            print('{} - {} => {} {}'.format(i, test, target[i], test - target[i]))  
+
+        print('')
 
         print('loss')
         print(loss)
         print('')        
         
-        for i, test in enumerate(test_predictions):
-            print('{} - {} => {}'.format(i, test, target[i]))        
-
-        print('')
         print('End')
         
     

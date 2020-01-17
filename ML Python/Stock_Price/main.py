@@ -3,8 +3,8 @@ from train import Trainer
 
 # Learning
 # loading the dataset
-# csv_data_file = 'PETR4.SA.csv'
-csv_data_file = 'MGLU3.SA.csv'
+csv_data_file = 'PETR4.SA_.csv'
+# csv_data_file = 'MGLU3.SA.csv'
 
 cleaner = Cleaner()
 feed, target = cleaner.generate_feed_n_target(csv_data_file)

@@ -10,3 +10,6 @@ class HumanPlayer:
         action = int(input())
         
         return action - 1
+
+    def step(self, env):
+        return self.act(env)

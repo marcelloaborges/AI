@@ -210,26 +210,27 @@ class TicTacToeBoard(_TTTB, Node):
 
 def play_game():
     tree = MCTS()
-    board = new_tic_tac_toe_board()
-    print(board.to_pretty_string())
-    while True:
-        row_col = input("enter row,col: ")
-        row, col = map(int, row_col.split(","))
-        index = 3 * (row - 1) + (col - 1)
-        if board.tup[index] is not None:
-            raise RuntimeError("Invalid move")
-        board = board.make_move(index)
-        print(board.to_pretty_string())
-        if board.terminal:
-            break
-        # You can train as you go, or only at the beginning.
-        # Here, we train as we go, doing fifty rollouts each turn.
-        for _ in range(50):
-            tree.do_rollout(board)
-        board = tree.choose(board)
-        print(board.to_pretty_string())
-        if board.terminal:
-            break
+    for _ in range(10):
+        board = new_tic_tac_toe_board()
+        print(board.to_pretty_string())    
+        while True:
+            row_col = input("enter row,col: ")
+            row, col = map(int, row_col.split(","))
+            index = 3 * (row - 1) + (col - 1)
+            if board.tup[index] is not None:
+                raise RuntimeError("Invalid move")
+            board = board.make_move(index)
+            print(board.to_pretty_string())
+            if board.terminal:
+                break
+            # You can train as you go, or only at the beginning.
+            # Here, we train as we go, doing fifty rollouts each turn.
+            for _ in range(50):
+                tree.do_rollout(board)
+            board = tree.choose(board)
+            print(board.to_pretty_string())
+            if board.terminal:
+                break
 
 
 def _winning_combos():
