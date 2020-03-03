@@ -96,9 +96,6 @@ for episode in range(n_episodes):
     for i in range(FRAME_SEQ):
         state_frames.append(state)
 
-
-    state = env.reset()
-
     while True:        
         # action = env.action_space.sample()        
 

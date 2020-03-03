@@ -135,7 +135,7 @@ class Agent:
 
         # Apply gradients
         self.optimizer.zero_grad()        
-        loss.backward()
+        
         self.optimizer.step()        
 
         # update target model        

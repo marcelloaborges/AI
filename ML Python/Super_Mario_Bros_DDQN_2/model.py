@@ -143,7 +143,7 @@ class DQN(nn.Module):
 
 class Model(nn.Module):
 
-    def __init__(self, action_size, channels=8, fc1_units=128, fc2_units=64):
+    def __init__(self, action_size, channels=3, fc1_units=128, fc2_units=64):
         super(Model, self).__init__()
         
         self.channels = channels   

@@ -13,12 +13,12 @@ import pandas as pd #manage datasets
 #applying the mean strategy to the dataset for missing values in columns
 #imputer = imp[missing_values = 'NaN', strategy = 'mean', axis = 0]
 
-dataset = pd.read_csv('C:\\Dev\\Learning\\Base\\SuperDataScience\\Simple_Linear_Regression\\Salary_Data.csv')
+dataset = pd.read_csv('C:\\Dev\\Studies-and-Researches\\Base\\SuperDataScience\\Simple_Linear_Regression\\Salary_Data.csv')
 x = dataset.iloc[:, :-1].values
 y = dataset.iloc[:, 1].values
 
 #split base into train and test
-from sklearn.cross_validation import train_test_split as tts
+from sklearn.model_selection import train_test_split as tts
 x_train, x_test, y_train, y_test = tts(x, y, test_size = 0.2, random_state = 0)
 
 #fit the regression

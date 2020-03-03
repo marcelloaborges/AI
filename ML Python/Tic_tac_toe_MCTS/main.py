@@ -92,5 +92,5 @@ def play():
         else:
             initial_player = p1 
 
-train()
+# train()
 play()

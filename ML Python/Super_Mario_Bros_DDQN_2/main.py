@@ -54,13 +54,13 @@ img_w = int(state_example.shape[1]/3)
 # HYPERPARAMETERS
 EPSILON = 0.1
 
-FRAME_SEQ = 4
+# FRAME_SEQ = 4
 
 LR = 1e-3
-BUFFER_SIZE = int(1e5)
-BATCH_SIZE = 64
-FRAME_SKIP = 4
-UPDATE_EVERY = 4
+BUFFER_SIZE = int(1e6)
+BATCH_SIZE = 512
+FRAME_SKIP = 10
+UPDATE_EVERY = 32
 
 GAMMA = 0.95
 TAU = 1e-3
@@ -71,7 +71,7 @@ CHECKPOINT_FOLDER = './'
 
 # AGENT
 agent = Agent(DEVICE, 
-    FRAME_SEQ, action_size, 
+    action_size, 
     LR,
     BUFFER_SIZE, 
     FRAME_SKIP, UPDATE_EVERY, BATCH_SIZE,
@@ -84,48 +84,50 @@ n_episodes = 10000
 for episode in range(n_episodes):
     
     total_reward = 0    
+    # state = env.reset()
+
+    # # STACK THE INITIAL FRAME TO BEGIN THE EPISODE
+    # state = Image.fromarray(state).resize( ( img_h, img_w ) )
+    # state = transforms.functional.to_grayscale(state)
+    # # tensorToImg( imgToTensor(state)).save('check1.jpg')
+    # state = imgToTensor(state).squeeze(0).cpu().data.numpy()    
+
+    # state_frames = deque(maxlen=FRAME_SEQ)
+    # for i in range(FRAME_SEQ):
+    #     state_frames.append(state)
+
+
     state = env.reset()
 
-    # STACK THE INITIAL FRAME TO BEGIN THE EPISODE
     state = Image.fromarray(state).resize( ( img_h, img_w ) )
     state = transforms.functional.to_grayscale(state)
     # tensorToImg( imgToTensor(state)).save('check1.jpg')
-    state = imgToTensor(state).squeeze(0).cpu().data.numpy()    
-
-    state_frames = deque(maxlen=FRAME_SEQ)
-    for i in range(FRAME_SEQ):
-        state_frames.append(state)
-
-
-    state = env.reset()
+    state = imgToTensor(state).cpu().data.numpy() 
 
     while True:        
-        # action = env.action_space.sample()        
+        # action = env.action_space.sample()                   
 
-        action = agent.act( state_frames, EPSILON )        
+        action = agent.act( state, EPSILON )        
 
         next_state, reward, done, info = env.step(action)
 
         next_state = Image.fromarray(next_state).resize( ( img_h, img_w ) )
         next_state = transforms.functional.to_grayscale(next_state)
         # tensorToImg( imgToTensor(state)).save('check2.jpg')
-        next_state = imgToTensor(next_state).squeeze(0).cpu().data.numpy()    
-
-        temp_state_frames = state_frames.copy()
-        temp_state_frames.append( next_state )
+        next_state = imgToTensor(next_state).cpu().data.numpy()
         
-        loss = agent.step( state_frames, action, reward, temp_state_frames, done )
+        loss = agent.step( state, action, reward, next_state, done )
 
         env.render()
 
         total_reward += reward
 
+        state = next_state
+
         if done:
             agent.checkpoint()            
 
-            break        
-
-        state_frames.append(next_state)
+            break                
         
         print('\rE: {} TR: {} R: {} L: {:.15f}'.format( episode + 1, total_reward, reward, loss ), end='')
 

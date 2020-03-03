@@ -2,6 +2,7 @@ import numpy as np
 import random
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
@@ -14,8 +15,7 @@ class Agent:
 
     def __init__(
         self, 
-        device,
-        channels,        
+        device,        
         action_size,
         lr,
         buffer_size, 
@@ -26,8 +26,7 @@ class Agent:
 
         self.DEVICE = device
 
-        # HYPERPARAMETERS
-        self.CHANNELS = channels
+        # HYPERPARAMETERS        
         self.ACTION_SIZE = action_size   
                    
         self.FRAME_SKIP = frame_skip
@@ -37,8 +36,8 @@ class Agent:
         self.TAU = tau             
 
         # NEURAL MODEL
-        self.model = Model(action_size, channels, 512).to(self.DEVICE)
-        self.target_model = Model(action_size, channels, 512).to(self.DEVICE)
+        self.model = Model(action_size, 1, 512).to(self.DEVICE)
+        self.target_model = Model(action_size, 1, 512).to(self.DEVICE)
 
         # self.optimizer = optim.Adam( self.model.parameters(), lr=lr )
         self.optimizer = optim.RMSprop( self.model.parameters(), lr=lr )
@@ -135,6 +134,8 @@ class Agent:
 
 
         # Apply gradients
+        nn.utils.clip_grad_norm_( self.model.parameters(), 1 )
+
         self.optimizer.zero_grad()        
         loss.backward()
         self.optimizer.step()        
