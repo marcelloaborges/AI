@@ -1,0 +1,59 @@
+2020-10-07 15:37:47,404 INFO    MainThread:3236 [wandb_init.py:_log_setup():307] Logging user logs to wandb\run-20201007_153747-1atpgrjr\logs\debug.log
+2020-10-07 15:37:47,404 INFO    MainThread:3236 [wandb_init.py:_log_setup():308] Logging internal logs to wandb\run-20201007_153747-1atpgrjr\logs\debug-internal.log
+2020-10-07 15:37:47,405 INFO    MainThread:3236 [wandb_setup.py:_flush():68] setting env: {}
+2020-10-07 15:37:47,405 INFO    MainThread:3236 [wandb_setup.py:_flush():68] setting user settings: {}
+2020-10-07 15:37:47,405 INFO    MainThread:3236 [wandb_setup.py:_flush():68] multiprocessing start_methods=spawn
+2020-10-07 15:37:47,405 WARNING MainThread:3236 [wandb_setup.py:_flush():68] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-07 15:37:47,408 INFO    MainThread:3236 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-07 15:37:47,580 WARNING MainThread:3236 [wandb_setup.py:__init__():209] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-07 15:37:51,592 INFO    MainThread:3236 [wandb_run.py:_console_start():1134] atexit reg
+2020-10-07 15:37:51,594 INFO    MainThread:3236 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-07 15:37:51,594 INFO    MainThread:3236 [wandb_run.py:_redirect():1009] redirect: SettingsConsole.REDIRECT
+2020-10-07 15:37:51,594 INFO    MainThread:3236 [wandb_run.py:_redirect():1012] Redirecting console.
+2020-10-07 15:37:51,594 ERROR   MainThread:3236 [redirect.py:install():184] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-07 15:37:51,595 ERROR   MainThread:3236 [wandb_run.py:_redirect():1059] Failed to redirect.
+Traceback (most recent call last):
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\sdk\wandb_run.py", line 1052, in _redirect
+    out_redir.install()
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\lib\redirect.py", line 185, in install
+    raise Exception(msg)
+Exception: Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-07 15:37:51,618 INFO    MainThread:3236 [wandb_watch.py:watch():32] Watching
+2020-10-07 15:37:51,618 INFO    MainThread:3236 [wandb_watch.py:watch():32] Watching
+2020-10-07 17:57:27,628 INFO    MainThread:3236 [wandb_run.py:_atexit_cleanup():1112] got exitcode: 1
+2020-10-07 17:57:27,629 INFO    MainThread:3236 [wandb_run.py:_restore():1084] restore
+2020-10-07 17:57:27,634 INFO    MainThread:3236 [wandb_run.py:_wait_for_finish():1216] got exit ret: uuid: "2e0b6b27010a4c09a6a17af617187213"
+response {
+  poll_exit_response {
+    file_counts {
+      wandb_count: 1
+      media_count: 2
+    }
+    pusher_stats {
+      uploaded_bytes: 1824
+      total_bytes: 1824
+    }
+  }
+}
+
+2020-10-07 17:57:29,636 INFO    MainThread:3236 [wandb_run.py:_wait_for_finish():1216] got exit ret: uuid: "cf399cf483ed4b0e93736cac9fac2fb5"
+response {
+  poll_exit_response {
+    done: true
+    exit_result {
+    }
+    file_counts {
+      wandb_count: 4
+      media_count: 2
+    }
+    pusher_stats {
+      uploaded_bytes: 25297
+      total_bytes: 25297
+    }
+  }
+}
+
+2020-10-07 17:57:30,745 INFO    MainThread:3236 [wandb_run.py:_show_summary():1323] rendering summary
+2020-10-07 17:57:30,749 INFO    MainThread:3236 [wandb_run.py:_show_history():1347] rendering history
+2020-10-07 17:57:30,752 INFO    MainThread:3236 [wandb_run.py:_show_files():1363] logging synced files
+2020-10-07 17:57:30,754 INFO    MainThread:3236 [internal.py:handle_exit():137] Internal process exited

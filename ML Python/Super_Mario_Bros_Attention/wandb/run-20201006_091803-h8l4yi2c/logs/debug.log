@@ -1,0 +1,22 @@
+2020-10-06 09:18:03,406 INFO    MainThread:11840 [wandb_init.py:_log_setup():307] Logging user logs to wandb\run-20201006_091803-h8l4yi2c\logs\debug.log
+2020-10-06 09:18:03,406 INFO    MainThread:11840 [wandb_init.py:_log_setup():308] Logging internal logs to wandb\run-20201006_091803-h8l4yi2c\logs\debug-internal.log
+2020-10-06 09:18:03,407 INFO    MainThread:11840 [wandb_setup.py:_flush():68] setting env: {}
+2020-10-06 09:18:03,407 INFO    MainThread:11840 [wandb_setup.py:_flush():68] setting user settings: {}
+2020-10-06 09:18:03,407 INFO    MainThread:11840 [wandb_setup.py:_flush():68] multiprocessing start_methods=spawn
+2020-10-06 09:18:03,407 WARNING MainThread:11840 [wandb_setup.py:_flush():68] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-06 09:18:03,415 INFO    MainThread:11840 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-06 09:18:04,172 WARNING MainThread:11840 [wandb_setup.py:__init__():209] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-06 09:18:08,455 INFO    MainThread:11840 [wandb_run.py:_console_start():1134] atexit reg
+2020-10-06 09:18:08,458 INFO    MainThread:11840 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-06 09:18:08,458 INFO    MainThread:11840 [wandb_run.py:_redirect():1009] redirect: SettingsConsole.REDIRECT
+2020-10-06 09:18:08,461 INFO    MainThread:11840 [wandb_run.py:_redirect():1012] Redirecting console.
+2020-10-06 09:18:08,462 ERROR   MainThread:11840 [redirect.py:install():184] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-06 09:18:08,475 ERROR   MainThread:11840 [wandb_run.py:_redirect():1059] Failed to redirect.
+Traceback (most recent call last):
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\sdk\wandb_run.py", line 1052, in _redirect
+    out_redir.install()
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\lib\redirect.py", line 185, in install
+    raise Exception(msg)
+Exception: Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-06 09:18:08,493 INFO    MainThread:11840 [wandb_watch.py:watch():32] Watching
+2020-10-06 09:18:08,495 INFO    MainThread:11840 [wandb_watch.py:watch():32] Watching
