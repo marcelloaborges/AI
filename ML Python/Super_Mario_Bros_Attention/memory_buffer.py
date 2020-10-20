@@ -11,10 +11,11 @@ class MemoryBuffer:
 
         self.memory = deque(maxlen=buffer_size)
 
-    def add(self, state, action, reward, next_state, done):
+    def add(self, state, dist, action, reward, next_state, done):
         """Add a new experience to memory."""
         e = {
             "states" : state,
+            "dists" : dist,
             "actions" : action,            
             "rewards" : reward,            
             "next_states" : next_state,
@@ -31,6 +32,7 @@ class MemoryBuffer:
         samples = random.sample( self.memory, k=batch_size )
 
         states      = []
+        dists       = []
         actions     = []
         rewards     = []
         next_states = []
@@ -38,18 +40,20 @@ class MemoryBuffer:
 
         for exp in samples:
             states.append      ( exp['states']      )           
+            dists.append       ( exp['dists']     )
             actions.append     ( exp['actions']     )
             rewards.append     ( exp['rewards']     )
             next_states.append ( exp['next_states'] )
             dones.append       ( exp['dones']       )
 
         states      = np.array(states)
+        dists       = np.array(dists)
         actions     = np.array(actions)        
         rewards     = np.array(rewards)
         next_states = np.array(next_states)
         dones       = np.array(dones)        
 
-        return states, actions, rewards, next_states, dones
+        return states, dists, actions, rewards, next_states, dones
 
     def __len__(self):    
         return len(self.memory)

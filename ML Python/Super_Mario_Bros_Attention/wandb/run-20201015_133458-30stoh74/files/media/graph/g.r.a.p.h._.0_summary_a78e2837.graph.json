@@ -1,0 +1,1 @@
+{"format": "torch", "nodes": [{"name": "dropout", "id": 1377263900936, "class_name": "Dropout(p=0.2, inplace=False)", "parameters": [], "output_shape": [[1, 24, 256]], "num_parameters": []}], "edges": []}

@@ -1,0 +1,74 @@
+2020-10-15 13:34:58,975 INFO    MainThread:35648 [wandb_init.py:_log_setup():307] Logging user logs to wandb\run-20201015_133458-30stoh74\logs\debug.log
+2020-10-15 13:34:58,976 INFO    MainThread:35648 [wandb_init.py:_log_setup():308] Logging internal logs to wandb\run-20201015_133458-30stoh74\logs\debug-internal.log
+2020-10-15 13:34:58,976 INFO    MainThread:35648 [wandb_setup.py:_flush():68] setting env: {}
+2020-10-15 13:34:58,976 INFO    MainThread:35648 [wandb_setup.py:_flush():68] setting user settings: {}
+2020-10-15 13:34:58,976 INFO    MainThread:35648 [wandb_setup.py:_flush():68] multiprocessing start_methods=spawn
+2020-10-15 13:34:58,976 WARNING MainThread:35648 [wandb_setup.py:_flush():68] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-15 13:34:58,979 INFO    MainThread:35648 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-15 13:34:59,122 WARNING MainThread:35648 [wandb_setup.py:__init__():209] Ignoring settings passed to wandb.setup() which has already been configured.
+2020-10-15 13:35:02,719 INFO    MainThread:35648 [wandb_run.py:_console_start():1134] atexit reg
+2020-10-15 13:35:02,720 INFO    MainThread:35648 [wandb_settings.py:_console():393] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable proper console logging on Windows. Falling back to wrapping stdout/err.
+2020-10-15 13:35:02,720 INFO    MainThread:35648 [wandb_run.py:_redirect():1009] redirect: SettingsConsole.REDIRECT
+2020-10-15 13:35:02,721 INFO    MainThread:35648 [wandb_run.py:_redirect():1012] Redirecting console.
+2020-10-15 13:35:02,721 ERROR   MainThread:35648 [redirect.py:install():184] Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-15 13:35:02,721 ERROR   MainThread:35648 [wandb_run.py:_redirect():1059] Failed to redirect.
+Traceback (most recent call last):
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\sdk\wandb_run.py", line 1052, in _redirect
+    out_redir.install()
+  File "C:\Users\marcello.borges\AppData\Local\Programs\Python\Python36\lib\site-packages\wandb\lib\redirect.py", line 185, in install
+    raise Exception(msg)
+Exception: Set PYTHONLEGACYWINDOWSSTDIO environment variable to enable console logging on Windows.
+2020-10-15 13:35:02,736 INFO    MainThread:35648 [wandb_watch.py:watch():32] Watching
+2020-10-15 13:35:02,736 INFO    MainThread:35648 [wandb_watch.py:watch():32] Watching
+2020-10-15 13:35:02,736 INFO    MainThread:35648 [wandb_watch.py:watch():32] Watching
+2020-10-15 16:20:19,003 INFO    MainThread:35648 [wandb_run.py:_atexit_cleanup():1112] got exitcode: 255
+2020-10-15 16:20:19,012 INFO    MainThread:35648 [wandb_run.py:_restore():1084] restore
+2020-10-15 16:20:19,017 INFO    MainThread:35648 [wandb_run.py:_wait_for_finish():1216] got exit ret: uuid: "4fd004e61fce47ac92d611f2c76edc39"
+response {
+  poll_exit_response {
+    file_counts {
+      wandb_count: 1
+      media_count: 3
+    }
+    pusher_stats {
+      uploaded_bytes: 2969
+      total_bytes: 2969
+    }
+  }
+}
+
+2020-10-15 16:20:21,020 INFO    MainThread:35648 [wandb_run.py:_wait_for_finish():1216] got exit ret: uuid: "67a7ab3760ee4bd793d5385ccf21ef21"
+response {
+  poll_exit_response {
+    file_counts {
+      wandb_count: 4
+      media_count: 3
+    }
+    pusher_stats {
+      uploaded_bytes: 43904
+      total_bytes: 43904
+    }
+  }
+}
+
+2020-10-15 16:20:23,022 INFO    MainThread:35648 [wandb_run.py:_wait_for_finish():1216] got exit ret: uuid: "dbf52943b22a4a509218c78bc64a1e78"
+response {
+  poll_exit_response {
+    done: true
+    exit_result {
+    }
+    file_counts {
+      wandb_count: 4
+      media_count: 3
+    }
+    pusher_stats {
+      uploaded_bytes: 43904
+      total_bytes: 43904
+    }
+  }
+}
+
+2020-10-15 16:20:24,193 INFO    MainThread:35648 [wandb_run.py:_show_summary():1323] rendering summary
+2020-10-15 16:20:24,203 INFO    MainThread:35648 [wandb_run.py:_show_history():1347] rendering history
+2020-10-15 16:20:24,216 INFO    MainThread:35648 [wandb_run.py:_show_files():1363] logging synced files
+2020-10-15 16:20:24,219 INFO    MainThread:35648 [internal.py:handle_exit():137] Internal process exited

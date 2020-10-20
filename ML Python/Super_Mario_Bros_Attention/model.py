@@ -22,19 +22,24 @@ def kaiming_weight_init(weight, mode='fan_out', nonlinearity='relu'):
 
 class AttentionEncoderModel(nn.Module):
 
-    def __init__(self, seq_len, attention_heads, img_h, img_w, 
-        fc1_units=4096, fc2_units=2048, fc3_units=1024, fc4_units=512,
-        compressed_features_size=128, device='cpu'):
+    def __init__(self, seq_len, 
+        attention_heads, n_attention_blocks, 
+        img_h, img_w,         
+        fc1_units=4096, fc2_units=3072, fc3_units=2048, fc4_units=1024,
+        img_embedding=512,
+        attention_size=256,
+        attention_embedding=256, 
+        device='cpu'):
         super(AttentionEncoderModel, self).__init__()
 
         self.DEVICE = device        
 
         self.seq_len = seq_len
         self.attention_heads = attention_heads
-        self.img_embedding = 256 
-        self.n_attention_blocks = 8
-        self.output_size = 256 # base 64 / attention heads must be integer and even        
-        self.compressed_features_size = compressed_features_size
+        self.n_attention_blocks = n_attention_blocks
+        self.img_embedding = img_embedding
+        self.attention_size = attention_size # base 64 / attention heads must be integer and even
+        self.attention_embedding = attention_embedding
 
         # FLATTEN IMG EMBEDDING
         self.fc1_w, self.fc1_baias =\
@@ -50,7 +55,7 @@ class AttentionEncoderModel(nn.Module):
 
         # MLP (CUSTOM CONV1d)
         self.pre_enconding_w, self.pre_encoding_baias =\
-            self._generate_w_bias(self.img_embedding, self.output_size)
+            self._generate_w_bias(self.img_embedding, self.attention_size)
 
         # POSITIONAL
         self.positional_w =\
@@ -59,7 +64,7 @@ class AttentionEncoderModel(nn.Module):
                     torch.rand( 
                         (1, 
                         self.seq_len, 
-                        self.output_size), 
+                        self.attention_size), 
                         requires_grad=True 
                         ).to(self.DEVICE)
                     ) 
@@ -71,22 +76,22 @@ class AttentionEncoderModel(nn.Module):
         self.attention_blocks = []
 
         for _ in range( self.n_attention_blocks ):
-            self.attention_blocks.append( self._generate_attention_block( self.img_embedding, self.output_size ) )
+            self.attention_blocks.append( self._generate_attention_block( self.img_embedding, self.attention_size ) )
         
         # ENCODING OUTPUT
-        self.logits_conv_w, self.logits_conv_baias =\
-            self._generate_w_bias( self.output_size, self.compressed_features_size )
+        self.embedding_conv_w, self.embedding_conv_baias =\
+            self._generate_w_bias( self.attention_size, self.attention_embedding )
 
-    def _generate_attention_block(self, input_size, output_size):        
-        encoding_norm = nn.LayerNorm( self.output_size ).to(self.DEVICE)
+    def _generate_attention_block(self, input_size, attention_size):        
+        encoding_norm = nn.LayerNorm( self.attention_size ).to(self.DEVICE)
 
-        encoding_w, encoding_baias = self._generate_w_bias( output_size, output_size * 3 )
-        merging_w, merging_baias = self._generate_w_bias( output_size, output_size )
+        encoding_w, encoding_baias = self._generate_w_bias( attention_size, attention_size * 3 )
+        merging_w, merging_baias = self._generate_w_bias( attention_size, attention_size )
 
-        residual_norm = nn.LayerNorm( self.output_size ).to(self.DEVICE)
+        residual_norm = nn.LayerNorm( self.attention_size ).to(self.DEVICE)
 
-        residual_w1, residual_baias1 = self._generate_w_bias( output_size, output_size * 4 )
-        residual_w2, residual_baias2 = self._generate_w_bias( output_size * 4, output_size )
+        residual_w1, residual_baias1 = self._generate_w_bias( attention_size, attention_size * 4 )
+        residual_w2, residual_baias2 = self._generate_w_bias( attention_size * 4, attention_size )
 
         dropout = nn.Dropout( .2 )
 
@@ -110,7 +115,7 @@ class AttentionEncoderModel(nn.Module):
 
         return block
 
-    def _generate_w_bias(self, input_size, output_size):
+    def _generate_w_bias(self, input_size, attention_size):
         
         # WEIGHTS
         w = kaiming_weight_init( 
@@ -118,14 +123,14 @@ class AttentionEncoderModel(nn.Module):
                 torch.rand( 
                     (1, 
                     input_size, 
-                    output_size), 
+                    attention_size), 
                     requires_grad=True 
                     ).to(self.DEVICE)
                 ) 
             )
         
         # BAIAS
-        b = torch.zeros( output_size, requires_grad=True ).to(self.DEVICE)
+        b = torch.zeros( attention_size, requires_grad=True ).to(self.DEVICE)
 
         return w, b
 
@@ -199,7 +204,7 @@ class AttentionEncoderModel(nn.Module):
         x = self._custom_conv1( x, self.fc4_w, self.fc4_baias )
         x = F.relu( x )
         x = self._custom_conv1( x, self.fc5_w, self.fc5_baias )
-        x = torch.tanh( x )
+        # x = F.relu( x )
 
         # GPT 2
 
@@ -222,11 +227,11 @@ class AttentionEncoderModel(nn.Module):
 
             c = self._custom_conv1( x_norm, block['encoding_w'], block['encoding_baias'] )
 
-            Q, K, V = c.split( self.output_size, dim=2 )        
+            Q, K, V = c.split( self.attention_size, dim=2 )        
 
-            Q = Q.view( -1, dims_x[1], self.attention_heads, self.output_size // self.attention_heads )
-            K = K.view( -1, dims_x[1], self.attention_heads, self.output_size // self.attention_heads )
-            V = V.view( -1, dims_x[1], self.attention_heads, self.output_size // self.attention_heads )
+            Q = Q.view( -1, dims_x[1], self.attention_heads, self.attention_size // self.attention_heads )
+            K = K.view( -1, dims_x[1], self.attention_heads, self.attention_size // self.attention_heads )
+            V = V.view( -1, dims_x[1], self.attention_heads, self.attention_size // self.attention_heads )
 
             Q = Q.transpose( 2, 1 )
             K = K.transpose( 2, 1 )
@@ -271,9 +276,8 @@ class AttentionEncoderModel(nn.Module):
                 x = block['dropout']( x )
 
         # ENCODING OUTPUT
-        encoded = self._custom_conv1( x, self.logits_conv_w, self.logits_conv_baias )
-
-        # encoded = torch.tanh( encoded )
+        encoded = self._custom_conv1( x, self.embedding_conv_w, self.embedding_conv_baias )
+        
         encoded = ( encoded - encoded.mean() ) / encoded.std() + 1.0e-10
 
         return encoded
@@ -299,12 +303,12 @@ class AttentionActionModel(nn.Module):
         self.fc3 = nn.Linear(fc2_units, 1)
         self.fc3.weight.data.uniform_(-3e-3, 3e-3)
 
-    def forward(self, state, action):
+    def forward(self, state, dist):
         
         x = self.fc1(state)
         x = F.relu( x )
         
-        x = torch.cat( (x, action), dim=2 )
+        x = torch.cat( (x, dist), dim=2 )
 
         x = self.fc2( x )
         x = F.relu( x )
@@ -339,9 +343,11 @@ class DQNModel(nn.Module):
         x = F.relu( self.fc3(x) )
         x = F.relu( self.fc4(x) )
 
-        action_values = self.fc_action(x)
+        x = self.fc_action(x)
 
-        return action_values
+        # action_values = torch.tanh( x )
+
+        return x
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):
