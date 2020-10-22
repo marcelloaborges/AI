@@ -332,20 +332,18 @@ class DQNModel(nn.Module):
 
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
-        self.fc3 = layer_init( nn.Linear(fc2_units, fc3_units) )
-        self.fc4 = layer_init( nn.Linear(fc3_units, fc4_units) )
+        # self.fc3 = layer_init( nn.Linear(fc2_units, fc3_units) )
+        # self.fc4 = layer_init( nn.Linear(fc3_units, fc4_units) )
 
-        self.fc_action = layer_init( nn.Linear(fc4_units, action_size) )
+        self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )
 
     def forward(self, state):
         x = F.relu( self.fc1(state) )
         x = F.relu( self.fc2(x) )
-        x = F.relu( self.fc3(x) )
-        x = F.relu( self.fc4(x) )
+        # x = F.relu( self.fc3(x) )
+        # x = F.relu( self.fc4(x) )
 
         x = self.fc_action(x)
-
-        # action_values = torch.tanh( x )
 
         return x
 

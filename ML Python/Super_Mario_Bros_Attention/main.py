@@ -2,6 +2,8 @@ import os
 import numpy as np
 from collections import deque
 
+import random
+
 import torch
 import torch.optim as optim
 
@@ -11,7 +13,7 @@ from PIL import Image
 
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT, RIGHT_ONLY
+from gym_super_mario_bros.actions import RIGHT_ONLY, SIMPLE_MOVEMENT, COMPLEX_MOVEMENT
 
 from agent_dqn import Agent
 
@@ -21,7 +23,7 @@ from model import AttentionEncoderModel, AttentionActionModel, ActorModel, Criti
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # ORIGINAL
-env = gym_super_mario_bros.make('SuperMarioBros-v0')
+# env = gym_super_mario_bros.make('SuperMarioBros-v0')
 # BLACK
 # env = gym_super_mario_bros.make('SuperMarioBros-v1')
 # PIXEL
@@ -29,9 +31,9 @@ env = gym_super_mario_bros.make('SuperMarioBros-v0')
 # ONLY FIRST STATE
 # env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
 # RANDOM STAGES
-# env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
+env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
 
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
+env = JoypadSpace(env, RIGHT_ONLY)
 
 state_info = env.reset()
 action_info = env.action_space.sample()
@@ -58,7 +60,7 @@ img_h = int(state_example.shape[1]/3)
 
 
 # HYPERPARAMETERS
-T_FRAME_SKIP = 8
+T_FRAME_SKIP = 4
 
 EPS = 1
 EPS_DECAY = 0.9995
@@ -67,14 +69,20 @@ GAMMA = 0.9
 TAU = 1e-3
 LR = 25e-5
 
-UPDATE_EVERY = 32
-BATCH_SIZE = 256
+UPDATE_EVERY = 8
+BATCH_SIZE = 32
 
-BURNIN = int(5e3)
+# BURNIN = int(5e3)
+BURNIN = BATCH_SIZE * 64
+Q_START_LEARNING = 500
+
+
 # BURNIN = 0
-Q_START_LEARNING = int(1e4)
+# Q_START_LEARNING = 1
 
-SEQ_LEN = 24
+
+
+SEQ_LEN = 64
 ATTENTION_HEADS = 2
 N_ATTENTION_BLOCKS = 4
 FC1_UNITS = 4096
@@ -138,11 +146,11 @@ target_model = DQNModel(
         fc4_units=32
     ).to(DEVICE)
 
-optimizer = optim.RMSprop( 
+attention_optimizer = optim.RMSprop( 
     list(attention_model.parameters()) + 
-    list(action_model.parameters()) + 
-    list(model.parameters()), lr=LR )
-# agent_optimizer = optim.Adam( model.parameters(), lr=LR )
+    list(action_model.parameters()), 
+    lr=LR )
+agent_optimizer = optim.Adam( model.parameters(), lr=LR )
 
 attention_model.load(CHECKPOINT_ATTENTION, DEVICE)
 action_model.load(CHECKPOINT_ACTION, DEVICE)
@@ -152,11 +160,12 @@ target_model.load(CHECKPOINT_DQN, DEVICE)
 # AGENT
 
 agent = Agent(DEVICE,     
+    SEQ_LEN,
     action_size,
     EPS, EPS_DECAY, EPS_MIN,
     BURNIN, Q_START_LEARNING, UPDATE_EVERY, BATCH_SIZE, GAMMA, TAU, 
     attention_model, action_model, model, target_model, 
-    optimizer,
+    attention_optimizer, agent_optimizer,
     BUFFER_SIZE,
     CHECKPOINT_ATTENTION, CHECKPOINT_ACTION, CHECKPOINT_DQN
     )
@@ -194,12 +203,14 @@ def train(n_episodes, height_pixel_cut=15):
         seq_state.append( state )
 
         # while True:        
-        for _ in range(5000):        
+        n_steps = random.randint(500, 1500)
+        for _ in range(n_steps):
             
             dist, action = agent.act( seq_state )
 
             next_state, reward, done, _ = env.step(action)
-            reward = np.sign(reward)
+            # reward = np.sign(reward)
+            reward = reward if reward <= 0 else 1
 
             next_state = Image.fromarray(next_state).resize( ( img_w, img_h ) )
             next_state = transforms.functional.to_grayscale(next_state)
@@ -237,5 +248,5 @@ def train(n_episodes, height_pixel_cut=15):
 
     env.close()
 
-n_episodes = 10000
+n_episodes = 1000
 train(n_episodes)

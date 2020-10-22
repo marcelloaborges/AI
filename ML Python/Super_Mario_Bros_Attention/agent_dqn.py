@@ -17,11 +17,12 @@ class Agent:
     def __init__(
         self, 
         device,
+        seq_len,
         action_size,        
         eps, eps_decay, eps_min,
         burnin, q_start_learning, update_every, batch_size, gamma, tau,
         attention_model, action_model, model, target_model,
-        optimizer, 
+        attention_optimizer, agent_optimizer,
         buffer_size,
         checkpoint_attention, checkpoint_action, checkpoint_dqn
         ):
@@ -29,6 +30,7 @@ class Agent:
         self.DEVICE = device
 
         # HYPERPARAMETERS           
+        self.SEQ_LEN = seq_len
         self.ACTION_SIZE = action_size
         self.EPS = eps
         self.EPS_DECAY = eps_decay
@@ -49,7 +51,8 @@ class Agent:
 
         self.attention_model.eval()
 
-        self.optimizer = optimizer
+        self.attention_optimizer = attention_optimizer
+        self.agent_optimizer = agent_optimizer
         self.scaler = GradScaler() 
 
         self.CHECKPOINT_ATTENTION = checkpoint_attention
@@ -128,150 +131,122 @@ class Agent:
 
         # TEMPORAL CORRELATION BETWEEN REWARDS
 
-        discount = 0.9**np.arange( 24 )
-        rewards = rewards * discount
-        rewards_future = rewards[::-1].cumsum(axis=1)[::-1]
+        discount = 0.9**np.arange( self.SEQ_LEN )
+        rewards_future = rewards * discount
+        rewards_future = rewards_future[::-1].cumsum(axis=1)[::-1]
 
         # TENSORS
 
-        states      = torch.from_numpy( states                 ).float().to(self.DEVICE)
-        dists       = torch.from_numpy( dists                  ).float().to(self.DEVICE).squeeze(2)
-        actions     = torch.from_numpy( actions                ).long().to(self.DEVICE)
-        rewards     = torch.from_numpy( rewards_future.copy()  ).float().to(self.DEVICE)
-        next_states = torch.from_numpy( next_states            ).float().to(self.DEVICE)
-        dones       = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE)
+        states         = torch.from_numpy( states                 ).float().to(self.DEVICE)
+        dists          = torch.from_numpy( dists                  ).float().to(self.DEVICE).squeeze(2)
+        actions        = torch.from_numpy( actions                ).long().to(self.DEVICE)
+        rewards        = torch.from_numpy( rewards                ).float().to(self.DEVICE)
+        rewards_future = torch.from_numpy( rewards_future.copy()  ).float().to(self.DEVICE)
+        next_states    = torch.from_numpy( next_states            ).float().to(self.DEVICE)
+        dones          = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE)
         
-        # GPT2
-        with autocast(): 
-            encoded = self.attention_model( states )
-            predicted_reward = self.action_model( encoded, dists )        
+        attention_loss = torch.tensor(0).to(self.DEVICE)
+        q_loss = torch.tensor(0).to(self.DEVICE)
 
-            norm_rewards = ( rewards - rewards.mean() ) / rewards.std() + 1.0e-10
+        if self.q_step < self.Q_START_LEARNING:
+            with autocast(): 
 
-            attention_loss = F.mse_loss( predicted_reward.squeeze(-1), norm_rewards )
+                # GPT2
+                encoded = self.attention_model( states )
+                predicted_reward = self.action_model( encoded, dists )        
 
-            # L2 Regularization
-            l2_factor = 1e-8
+                norm_rewards = ( rewards_future - rewards_future.mean() ) / rewards_future.std() + 1.0e-10
 
-            l2_reg_attention = None
-            for W in self.attention_model.parameters():
-                if l2_reg_attention is None:
-                    l2_reg_attention = W.norm(2)
-                else:
-                    l2_reg_attention = l2_reg_attention + W.norm(2)
+                attention_loss = F.mse_loss( predicted_reward.squeeze(-1), norm_rewards )
 
-            l2_reg_attention = l2_reg_attention * l2_factor
+                # L2 Regularization
+                l2_factor = 1e-8
 
-            attention_loss += l2_reg_attention
+                l2_reg_attention = None
+                for W in self.attention_model.parameters():
+                    if l2_reg_attention is None:
+                        l2_reg_attention = W.norm(2)
+                    else:
+                        l2_reg_attention = l2_reg_attention + W.norm(2)
 
-            l2_reg_action = None
-            for W in self.action_model.parameters():
-                if l2_reg_action is None:
-                    l2_reg_action = W.norm(2)
-                else:
-                    l2_reg_action = l2_reg_action + W.norm(2)
+                l2_reg_attention = l2_reg_attention * l2_factor
 
-            l2_reg_action = l2_reg_action * l2_factor
+                attention_loss += l2_reg_attention
 
-            attention_loss += l2_reg_action
-        
-            with torch.no_grad():
-                encoded_ns = self.attention_model(next_states)[:,-1:].squeeze(1)
-                Q_target_next = self.target_model(encoded_ns)
-                Q_target_next = Q_target_next.max(1)[0]
-                
-                Q_target = rewards[:,-1:].squeeze(1) + self.GAMMA * Q_target_next * (1 - dones[:,-1:].squeeze(1))
+                l2_reg_action = None
+                for W in self.action_model.parameters():
+                    if l2_reg_action is None:
+                        l2_reg_action = W.norm(2)
+                    else:
+                        l2_reg_action = l2_reg_action + W.norm(2)
 
-            encoded_s = self.attention_model(states)[:,-1:].squeeze(1)
-            Q_value = self.model(encoded_s)
-            Q_value = Q_value.gather(1, actions[:,-1:]).squeeze(1)
+                l2_reg_action = l2_reg_action * l2_factor
 
-            q_loss = F.smooth_l1_loss(Q_value, Q_target)
+                attention_loss += l2_reg_action                        
 
-            l2_factor = 1e-8
+            # BACKWARD        
+            self.attention_optimizer.zero_grad()
+            self.scaler.scale(attention_loss).backward() 
+            self.scaler.step(self.attention_optimizer)
+            self.scaler.update()
 
-            l2_reg_actor = None
-            for W in self.model.parameters():
-                if l2_reg_actor is None:
-                    l2_reg_actor = W.norm(2)
-                else:
-                    l2_reg_actor = l2_reg_actor + W.norm(2)
+            # WANDB
+            pr = predicted_reward.squeeze(-1)[-1][-1]
+            r = norm_rewards[-1][-1]
 
-            l2_reg_actor = l2_reg_actor * l2_factor
+            wandb.log(
+                {                            
+                    "attention_loss": attention_loss,                    
+                    "predicted": pr,
+                    "expected": r,
+                }
+            )
 
-            q_loss += l2_reg_actor
+        # DQN            
+        if self.q_step >= self.Q_START_LEARNING:        
+            with autocast(): 
+                with torch.no_grad():
+                    encoded_ns = self.attention_model(next_states)[:,-1:].squeeze(1)
+                    Q_target_next = self.target_model(encoded_ns)
+                    Q_target_next = Q_target_next.max(1)[0]
+                    
+                    Q_target = rewards[:,-1:].squeeze(1) + self.GAMMA * Q_target_next * (1 - dones[:,-1:].squeeze(1))            
+                                            
+                with torch.no_grad():
+                    encoded_s = self.attention_model(states)[:,-1:].squeeze(1)
+                Q_value = self.model(encoded_s)
+                Q_value = Q_value.gather(1, actions[:,-1:]).squeeze(1)            
 
-        # BACKWARD
-        loss = attention_loss + q_loss
+                q_loss = F.mse_loss(Q_value, Q_target)
 
-        self.optimizer.zero_grad()
-        self.scaler.scale(loss).backward() 
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
+                l2_factor = 1e-8
 
+                l2_reg_actor = None
+                for W in self.model.parameters():
+                    if l2_reg_actor is None:
+                        l2_reg_actor = W.norm(2)
+                    else:
+                        l2_reg_actor = l2_reg_actor + W.norm(2)
 
-        # WANDB
-        pr = predicted_reward.squeeze(-1)[-1][-1]
-        r = norm_rewards[-1][-1]
+                l2_reg_actor = l2_reg_actor * l2_factor
 
-        wandb.log(
-            {                            
-                "attention_loss": attention_loss,
-                "q_loss": q_loss,
-                "predicted": pr,
-                "expected": r,
-            }
-        )
+                q_loss += l2_reg_actor
+
+            self.agent_optimizer.zero_grad()
+            self.scaler.scale(q_loss).backward() 
+            self.scaler.step(self.agent_optimizer)
+            self.scaler.update()
+
+            # WANDB            
+            wandb.log(
+                {                                                
+                    "q_loss": q_loss                    
+                }
+            )
+
+        self.q_step += 1        
 
         return attention_loss.cpu().data.numpy().item(), q_loss.cpu().data.numpy().item()
-
-        # # DQN       
-        # self.q_step += 1
-
-        # if self.q_step < self.Q_START_LEARNING:
-        #     return attention_loss.cpu().data.numpy().item(), 0             
-
-        # with autocast():
-        #     with torch.no_grad():
-        #         encoded_ns = self.attention_model(next_states)[:,-1:].squeeze(1)
-        #         Q_target_next = self.target_model(encoded_ns)
-        #         Q_target_next = Q_target_next.max(1)[0]
-                
-        #         Q_target = rewards[:,-1:].squeeze(1) + self.GAMMA * Q_target_next * (1 - dones[:,-1:].squeeze(1))
-
-        #     encoded_s = self.attention_model(states)[:,-1:].squeeze(1)
-        #     Q_value = self.model(encoded_s)
-        #     Q_value = Q_value.gather(1, actions[:,-1:]).squeeze(1)
-
-        #     q_loss = F.smooth_l1_loss(Q_value, Q_target)
-
-
-        #     l2_factor = 1e-8
-
-        #     l2_reg_actor = None
-        #     for W in self.model.parameters():
-        #         if l2_reg_actor is None:
-        #             l2_reg_actor = W.norm(2)
-        #         else:
-        #             l2_reg_actor = l2_reg_actor + W.norm(2)
-
-        #     l2_reg_actor = l2_reg_actor * l2_factor
-
-        #     q_loss += l2_reg_actor
-
-        # self.agent_optimizer.zero_grad()
-        # self.scaler.scale(q_loss).backward() 
-        # self.scaler.step(self.agent_optimizer)
-        # self.scaler.update()
-        
-        # # wandb.log(
-        # #     {                            
-        # #         "q_loss": q_loss,        
-        # #     }
-        # # )
-
-        # return attention_loss.cpu().data.numpy().item(), q_loss.cpu().data.numpy().item()
-   
 
     def _soft_update_target_model(self):
         for target_param, model_param in zip(self.target_model.parameters(), self.model.parameters()):
