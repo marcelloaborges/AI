@@ -10,8 +10,6 @@ from memory_buffer import MemoryBuffer
 
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
-import wandb
-
 class Agent:
 
     def __init__(
@@ -20,11 +18,11 @@ class Agent:
         seq_len,
         action_size,        
         eps, eps_decay, eps_min,
-        burnin, q_start_learning, update_every, batch_size, gamma, tau,
-        attention_model, action_model, model, target_model,
-        attention_optimizer, agent_optimizer,
+        burnin, update_every, batch_size, gamma, tau,
+        attention_model, attention_target, dqn_model, dqn_target,
+        optimizer,
         buffer_size,
-        checkpoint_attention, checkpoint_action, checkpoint_dqn
+        checkpoint_attention, checkpoint_dqn
         ):
 
         self.DEVICE = device
@@ -37,7 +35,6 @@ class Agent:
         self.EPS_MIN = eps_min
 
         self.BURNIN = burnin
-        self.Q_START_LEARNING = q_start_learning
         self.UPDATE_EVERY = update_every        
         self.BATCH_SIZE = batch_size
         self.GAMMA = gamma
@@ -45,37 +42,24 @@ class Agent:
 
         # NEURAL MODEL
         self.attention_model = attention_model
-        self.action_model = action_model
-        self.model = model
-        self.target_model = target_model
-
-        self.attention_model.eval()
-
-        self.attention_optimizer = attention_optimizer
-        self.agent_optimizer = agent_optimizer
+        self.attention_target = attention_target        
+        self.dqn_model = dqn_model
+        self.dqn_target = dqn_target
+        
+        self.optimizer = optimizer
         self.scaler = GradScaler() 
 
-        self.CHECKPOINT_ATTENTION = checkpoint_attention
-        self.CHECKPOINT_ACTION = checkpoint_action
+        self.CHECKPOINT_ATTENTION = checkpoint_attention        
         self.CHECKPOINT_DQN = checkpoint_dqn
 
         # MEMORY
         self.memory = MemoryBuffer(buffer_size)
 
         # AUX        
-        self.t_step = 0        
+        self.t_step = 0
         self.l_step = 0
-        self.q_step = 0
-        
-        self.attention_loss = (0.0, 1.0e-10)
-        self.q_loss = (0.0, 1.0e-10)
-
-        # WANDB
-        wandb.init(project="gpt-2", group="exp1_1", job_type="eval")
-
-        wandb.watch(self.attention_model)
-        wandb.watch(self.action_model)
-        wandb.watch(self.model)
+                
+        self.loss = (0.0, 1.0e-10)        
     
     def act(self, state):
 
@@ -87,13 +71,15 @@ class Agent:
         else:            
             state = torch.tensor(state).unsqueeze(0).float().to(self.DEVICE)            
             
-            self.model.eval()
+            self.attention_model.eval()
+            self.dqn_model.eval()
 
             with torch.no_grad():            
-                encoded = self.attention_model(state)
-                action_values = self.model(encoded[:,-1:].squeeze(1))
+                encoded = self.attention_model(state)[:,-1:].squeeze(1)
+                action_values = self.dqn_model(encoded)
                         
-            self.model.train()
+            self.attention_model.train()
+            self.dqn_model.train()
                     
             action_values = action_values.cpu().data.numpy()            
         
@@ -112,19 +98,18 @@ class Agent:
         self.t_step += 1
 
         if self.t_step < self.BURNIN:
-            return self.attention_loss[0]/self.attention_loss[1], self.q_loss[0]/self.q_loss[1]
+            return self.loss[0]/self.loss[1]
 
         # Learn every UPDATE_EVERY time steps.
         self.l_step = (self.l_step + 1) % self.UPDATE_EVERY
 
         if self.l_step == 0:
             if self.memory.enougth_samples(self.BATCH_SIZE):
-                attention_loss, q_loss = self._learn()
+                loss = self._learn()
+                
+                self.loss = (self.loss[0] * 0.99 + loss, self.loss[1] * 0.99 + 1.0)
 
-                self.attention_loss = (self.attention_loss[0] * 0.99 + attention_loss, self.attention_loss[1] * 0.99 + 1.0)
-                self.q_loss = (self.q_loss[0] * 0.99 + q_loss, self.q_loss[1] * 0.99 + 1.0)
-
-        return self.attention_loss[0]/self.attention_loss[1], self.q_loss[0]/self.q_loss[1]
+        return self.loss[0]/self.loss[1]
 
     def _learn(self):        
         states, dists, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)
@@ -144,115 +129,62 @@ class Agent:
         rewards_future = torch.from_numpy( rewards_future.copy()  ).float().to(self.DEVICE)
         next_states    = torch.from_numpy( next_states            ).float().to(self.DEVICE)
         dones          = torch.from_numpy( dones.astype(np.uint8) ).float().to(self.DEVICE)
-        
-        attention_loss = torch.tensor(0).to(self.DEVICE)
-        q_loss = torch.tensor(0).to(self.DEVICE)
 
-        if self.q_step < self.Q_START_LEARNING:
-            with autocast(): 
+        # DQN / GPT-2
+        with autocast(): 
+            with torch.no_grad():
+                encoded_ns = self.attention_target(next_states)
+                Q_target_next = self.dqn_target(encoded_ns)
+                Q_target_next = Q_target_next.max(2)[0]
+                
+                Q_target = rewards + self.GAMMA * Q_target_next * (1 - dones)
+            
+            encoded_s = self.attention_model(states)
+            Q_value = self.dqn_model(encoded_s)
+            Q_value = Q_value.gather(2, actions.unsqueeze(1)).squeeze(1)            
 
-                # GPT2
-                encoded = self.attention_model( states )
-                predicted_reward = self.action_model( encoded, dists )        
+            loss = F.mse_loss(Q_value, Q_target)
 
-                norm_rewards = ( rewards_future - rewards_future.mean() ) / rewards_future.std() + 1.0e-10
+            l2_factor = 1e-8
 
-                attention_loss = F.mse_loss( predicted_reward.squeeze(-1), norm_rewards )
+            l2_reg_dqn = None
+            for W in self.dqn_model.parameters():
+                if l2_reg_dqn is None:
+                    l2_reg_dqn = W.norm(2)
+                else:
+                    l2_reg_dqn = l2_reg_dqn + W.norm(2)
 
-                # L2 Regularization
-                l2_factor = 1e-8
+            l2_reg_dqn = l2_reg_dqn * l2_factor
 
-                l2_reg_attention = None
-                for W in self.attention_model.parameters():
-                    if l2_reg_attention is None:
-                        l2_reg_attention = W.norm(2)
-                    else:
-                        l2_reg_attention = l2_reg_attention + W.norm(2)
+            loss += l2_reg_dqn
 
-                l2_reg_attention = l2_reg_attention * l2_factor
+            l2_reg_attention = None
+            for W in self.attention_model.parameters():
+                if l2_reg_attention is None:
+                    l2_reg_attention = W.norm(2)
+                else:
+                    l2_reg_attention = l2_reg_attention + W.norm(2)
 
-                attention_loss += l2_reg_attention
+            l2_reg_attention = l2_reg_attention * l2_factor
 
-                l2_reg_action = None
-                for W in self.action_model.parameters():
-                    if l2_reg_action is None:
-                        l2_reg_action = W.norm(2)
-                    else:
-                        l2_reg_action = l2_reg_action + W.norm(2)
+            loss += l2_reg_attention
 
-                l2_reg_action = l2_reg_action * l2_factor
+        self.optimizer.zero_grad()
+        self.scaler.scale(loss).backward() 
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
 
-                attention_loss += l2_reg_action                        
+        self._soft_update_target_model()              
 
-            # BACKWARD        
-            self.attention_optimizer.zero_grad()
-            self.scaler.scale(attention_loss).backward() 
-            self.scaler.step(self.attention_optimizer)
-            self.scaler.update()
-
-            # WANDB
-            pr = predicted_reward.squeeze(-1)[-1][-1]
-            r = norm_rewards[-1][-1]
-
-            wandb.log(
-                {                            
-                    "attention_loss": attention_loss,                    
-                    "predicted": pr,
-                    "expected": r,
-                }
-            )
-
-        # DQN            
-        if self.q_step >= self.Q_START_LEARNING:        
-            with autocast(): 
-                with torch.no_grad():
-                    encoded_ns = self.attention_model(next_states)[:,-1:].squeeze(1)
-                    Q_target_next = self.target_model(encoded_ns)
-                    Q_target_next = Q_target_next.max(1)[0]
-                    
-                    Q_target = rewards[:,-1:].squeeze(1) + self.GAMMA * Q_target_next * (1 - dones[:,-1:].squeeze(1))            
-                                            
-                with torch.no_grad():
-                    encoded_s = self.attention_model(states)[:,-1:].squeeze(1)
-                Q_value = self.model(encoded_s)
-                Q_value = Q_value.gather(1, actions[:,-1:]).squeeze(1)            
-
-                q_loss = F.mse_loss(Q_value, Q_target)
-
-                l2_factor = 1e-8
-
-                l2_reg_actor = None
-                for W in self.model.parameters():
-                    if l2_reg_actor is None:
-                        l2_reg_actor = W.norm(2)
-                    else:
-                        l2_reg_actor = l2_reg_actor + W.norm(2)
-
-                l2_reg_actor = l2_reg_actor * l2_factor
-
-                q_loss += l2_reg_actor
-
-            self.agent_optimizer.zero_grad()
-            self.scaler.scale(q_loss).backward() 
-            self.scaler.step(self.agent_optimizer)
-            self.scaler.update()
-
-            # WANDB            
-            wandb.log(
-                {                                                
-                    "q_loss": q_loss                    
-                }
-            )
-
-        self.q_step += 1        
-
-        return attention_loss.cpu().data.numpy().item(), q_loss.cpu().data.numpy().item()
+        return loss.cpu().data.numpy().item()
 
     def _soft_update_target_model(self):
-        for target_param, model_param in zip(self.target_model.parameters(), self.model.parameters()):
+        for target_param, model_param in zip(self.dqn_target.parameters(), self.dqn_model.parameters()):
+            target_param.data.copy_(self.TAU*model_param.data + (1.0-self.TAU)*target_param.data)
+
+        for target_param, model_param in zip(self.attention_target.parameters(), self.attention_model.parameters()):
             target_param.data.copy_(self.TAU*model_param.data + (1.0-self.TAU)*target_param.data)
 
     def checkpoint(self):        
-        self.attention_model.checkpoint(self.CHECKPOINT_ATTENTION)
-        self.action_model.checkpoint(self.CHECKPOINT_ACTION)
-        self.model.checkpoint(self.CHECKPOINT_DQN)
+        self.attention_model.checkpoint(self.CHECKPOINT_ATTENTION)        
+        self.dqn_model.checkpoint(self.CHECKPOINT_DQN)

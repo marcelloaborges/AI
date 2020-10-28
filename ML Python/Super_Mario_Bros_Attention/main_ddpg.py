@@ -15,9 +15,9 @@ from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import RIGHT_ONLY, SIMPLE_MOVEMENT, COMPLEX_MOVEMENT
 
-from agent_dqn import Agent
+from agent_ddpg import Agent
 
-from model import AttentionEncoderModel, AttentionActionModel, ActorModel, CriticModel, DQNModel
+from model import AttentionEncoderModel, AttentionActionModel, DQNModel, ActorModel, CriticModel
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -62,7 +62,7 @@ img_h = int(state_example.shape[1]/3)
 # HYPERPARAMETERS
 T_FRAME_SKIP = 4
 
-EPS = 1
+EPS = 0.5
 EPS_DECAY = 0.9995
 EPS_MIN = 0.1
 GAMMA = 0.9
@@ -77,7 +77,7 @@ BURNIN = BATCH_SIZE * 64
 Q_START_LEARNING = 500
 
 
-# BURNIN = 0
+BURNIN = 0
 # Q_START_LEARNING = 1
 
 
@@ -98,8 +98,9 @@ BUFFER_SIZE = int(5e4)
 CHECKPOINT_FOLDER = './'
 
 CHECKPOINT_ATTENTION = CHECKPOINT_FOLDER + 'ATTENTION.pth'
-CHECKPOINT_ACTION = CHECKPOINT_FOLDER + 'ACTION.pth'
-CHECKPOINT_DQN = CHECKPOINT_FOLDER + 'DQN.pth'
+CHECKPOINT_ATTENTION_ACTION = CHECKPOINT_FOLDER + 'ATTENTION_ACTION.pth'
+CHECKPOINT_ACTOR = CHECKPOINT_FOLDER + 'ACTOR.pth'
+CHECKPOINT_CRITIC = CHECKPOINT_FOLDER + 'CRITIC.pth'
 
 BATCH_FOLDER = CHECKPOINT_FOLDER + 'batch/'
 
@@ -120,7 +121,8 @@ attention_model = AttentionEncoderModel(
         device=DEVICE
     ).to(DEVICE)
 
-action_model = AttentionActionModel(
+
+attention_action_model = AttentionActionModel(
         encoding_size=ATTENTION_EMBEDDING,
         action_size=action_size,
         fc1_units=64,
@@ -128,34 +130,52 @@ action_model = AttentionActionModel(
         device=DEVICE
     ).to(DEVICE)
 
-model = DQNModel(
-        state_size=ATTENTION_EMBEDDING,
+actor_model = ActorModel(
+        encoding_size=ATTENTION_EMBEDDING,
         action_size=action_size,
-        fc1_units=256,
-        fc2_units=128,
-        fc3_units=64,
-        fc4_units=32
+        fc1_units=128,
+        fc2_units=64,
+        device=DEVICE        
     ).to(DEVICE)
 
-target_model = DQNModel(
-        state_size=ATTENTION_EMBEDDING,
+actor_target = ActorModel(
+        encoding_size=ATTENTION_EMBEDDING,
         action_size=action_size,
-        fc1_units=256,
-        fc2_units=128,
-        fc3_units=64,
-        fc4_units=32
+        fc1_units=128,
+        fc2_units=64,
+        device=DEVICE
     ).to(DEVICE)
 
-attention_optimizer = optim.RMSprop( 
+critic_model = CriticModel(
+        encoding_size=ATTENTION_EMBEDDING,
+        action_size=action_size,
+        fc1_units=128,
+        fc2_units=64,
+        device=DEVICE
+    ).to(DEVICE)
+
+critic_target = CriticModel(
+        encoding_size=ATTENTION_EMBEDDING,
+        action_size=action_size,
+        fc1_units=128,
+        fc2_units=64,
+        device=DEVICE
+    ).to(DEVICE)
+
+# actor_optimizer = optim.Adam( actor_model.parameters(), lr=LR )
+optimizer = optim.RMSprop( 
     list(attention_model.parameters()) + 
-    list(action_model.parameters()), 
+    list(attention_action_model.parameters()) +     
+    list(actor_model.parameters()) + 
+    list(critic_model.parameters()), 
     lr=LR )
-agent_optimizer = optim.Adam( model.parameters(), lr=LR )
 
 attention_model.load(CHECKPOINT_ATTENTION, DEVICE)
-action_model.load(CHECKPOINT_ACTION, DEVICE)
-model.load(CHECKPOINT_DQN, DEVICE)
-target_model.load(CHECKPOINT_DQN, DEVICE)
+attention_model.load(CHECKPOINT_ATTENTION_ACTION, DEVICE)
+actor_model.load(CHECKPOINT_ACTOR, DEVICE)
+actor_target.load(CHECKPOINT_ACTOR, DEVICE)
+critic_model.load(CHECKPOINT_CRITIC, DEVICE)
+critic_target.load(CHECKPOINT_CRITIC, DEVICE)
 
 # AGENT
 
@@ -163,11 +183,13 @@ agent = Agent(DEVICE,
     SEQ_LEN,
     action_size,
     EPS, EPS_DECAY, EPS_MIN,
-    BURNIN, Q_START_LEARNING, UPDATE_EVERY, BATCH_SIZE, GAMMA, TAU, 
-    attention_model, action_model, model, target_model, 
-    attention_optimizer, agent_optimizer,
+    BURNIN, UPDATE_EVERY, BATCH_SIZE, GAMMA, TAU, 
+    attention_model, attention_action_model, 
+    actor_model, actor_target, 
+    critic_model, critic_target,
+    optimizer,
     BUFFER_SIZE,
-    CHECKPOINT_ATTENTION, CHECKPOINT_ACTION, CHECKPOINT_DQN
+    CHECKPOINT_ATTENTION, CHECKPOINT_ACTOR, CHECKPOINT_CRITIC
     )
 
 # TRAIN
@@ -202,8 +224,8 @@ def train(n_episodes, height_pixel_cut=15):
 
         seq_state.append( state )
 
-        # while True:        
-        n_steps = random.randint(500, 1500)
+        # while True:
+        n_steps = 1000
         for _ in range(n_steps):
             
             dist, action = agent.act( seq_state )
@@ -227,20 +249,21 @@ def train(n_episodes, height_pixel_cut=15):
 
             t_frame = (t_frame + 1) % T_FRAME_SKIP
             if t_frame == 0:
-                attention_loss, q_loss = agent.step( seq_state, seq_dist, seq_action, seq_reward, seq_next_state, seq_done )
+                attention_loss, actor_loss, critic_loss, loss = \
+                    agent.step( seq_state, seq_dist, seq_action, seq_reward, seq_next_state, seq_done )
                 t_step += 1
 
-                print('\r step:{} E: {} TR: {} R: {} AL: {:.5f} QL: {:.5f}'.format( 
+                print('\r step:{} E: {} TR: {} R: {} ATL: {:.5f} AL: {:.5f} CL: {:.5f} L: {:.5f}'.format( 
                     t_step,
                     episode + 1, total_reward, reward, 
-                    attention_loss, q_loss
+                    attention_loss, actor_loss, critic_loss, loss
                     ), end='')
 
             env.render()
 
             total_reward += reward
 
-            seq_state.append( next_state )            
+            seq_state.append( next_state )
 
             if done:
                 agent.checkpoint()

@@ -26,7 +26,6 @@ class AttentionEncoderModel(nn.Module):
         attention_heads, n_attention_blocks, 
         img_h, img_w,         
         fc1_units=4096, fc2_units=3072, fc3_units=2048, fc4_units=1024,
-        img_embedding=512,
         attention_size=256,
         attention_embedding=256, 
         device='cpu'):
@@ -36,26 +35,20 @@ class AttentionEncoderModel(nn.Module):
 
         self.seq_len = seq_len
         self.attention_heads = attention_heads
-        self.n_attention_blocks = n_attention_blocks
-        self.img_embedding = img_embedding
+        self.n_attention_blocks = n_attention_blocks        
         self.attention_size = attention_size # base 64 / attention heads must be integer and even
         self.attention_embedding = attention_embedding
 
         # FLATTEN IMG EMBEDDING
-        self.fc1_w, self.fc1_baias =\
-            self._generate_w_bias(img_h * img_w, fc1_units)
-        self.fc2_w, self.fc2_baias =\
-            self._generate_w_bias(fc1_units, fc2_units)
-        self.fc3_w, self.fc3_baias =\
-            self._generate_w_bias(fc2_units, fc3_units)
-        self.fc4_w, self.fc4_baias =\
-            self._generate_w_bias(fc3_units, fc4_units)
-        self.fc5_w, self.fc5_baias =\
-            self._generate_w_bias(fc4_units, self.img_embedding)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=4, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=4, stride=2, padding=1)
+        
+        self.flatten_size = 16 * 12 * 15
 
         # MLP (CUSTOM CONV1d)
         self.pre_enconding_w, self.pre_encoding_baias =\
-            self._generate_w_bias(self.img_embedding, self.attention_size)
+            self._generate_w_bias(self.flatten_size, self.attention_size )        
 
         # POSITIONAL
         self.positional_w =\
@@ -76,7 +69,7 @@ class AttentionEncoderModel(nn.Module):
         self.attention_blocks = []
 
         for _ in range( self.n_attention_blocks ):
-            self.attention_blocks.append( self._generate_attention_block( self.img_embedding, self.attention_size ) )
+            self.attention_blocks.append( self._generate_attention_block( self.flatten_size, self.attention_size ) )
         
         # ENCODING OUTPUT
         self.embedding_conv_w, self.embedding_conv_baias =\
@@ -191,26 +184,21 @@ class AttentionEncoderModel(nn.Module):
         x = state
         dims_x = x.shape
         
-        # FLATTEN
-        x = x.view( dims_x[0], dims_x[1], dims_x[2] * dims_x[3] * dims_x[4] )
-        
-        # IMG Embedding
-        x = self._custom_conv1( x, self.fc1_w, self.fc1_baias )
+        # IMG FLATTEN
+        x = x.view( dims_x[0] * dims_x[1], dims_x[2], dims_x[3], dims_x[4] )
+                
+        x = self.conv1( x )
         x = F.relu( x )
-        x = self._custom_conv1( x, self.fc2_w, self.fc2_baias )
+        x = self.conv2( x )
         x = F.relu( x )
-        x = self._custom_conv1( x, self.fc3_w, self.fc3_baias )
+        x = self.conv3( x )
         x = F.relu( x )
-        x = self._custom_conv1( x, self.fc4_w, self.fc4_baias )
-        x = F.relu( x )
-        x = self._custom_conv1( x, self.fc5_w, self.fc5_baias )
-        # x = F.relu( x )
+
+        # [ BATCH, SEQ(N_ITEMS), FEATURES ]        
+        x = x.view( dims_x[0], dims_x[1], self.flatten_size )
 
         # GPT 2
-
-        # [ BATCH, SEQ(N_ITEMS), FEATURES ]
-        # x = x.view( dims_x[0], dims_x[1], self.flatten_size )
-
+        
         # [ BATCH, SEQ(N_ITEMS), FEATURES X HEADS ]        
         x = self._custom_conv1( x, self.pre_enconding_w, self.pre_encoding_baias )
 
@@ -291,7 +279,7 @@ class AttentionEncoderModel(nn.Module):
 
 class AttentionActionModel(nn.Module):
 
-    def __init__(self, encoding_size, action_size, fc1_units=64, fc2_units=32, device='cpu'):
+    def __init__(self, encoding_size, action_size, fc1_units=128, fc2_units=64, device='cpu'):
         super(AttentionActionModel, self).__init__()
 
         self.encoding_size = encoding_size
@@ -299,9 +287,9 @@ class AttentionActionModel(nn.Module):
 
         self.fc1 = layer_init( nn.Linear(encoding_size, fc1_units) )
         self.fc2 = layer_init( nn.Linear(fc1_units + action_size, fc2_units) )
-        # self.fc3 = layer_init( nn.Linear(fc2_units, 1) )
-        self.fc3 = nn.Linear(fc2_units, 1)
-        self.fc3.weight.data.uniform_(-3e-3, 3e-3)
+        
+        self.value = nn.Linear(fc2_units, 1)
+        self.value.weight.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state, dist):
         
@@ -313,8 +301,7 @@ class AttentionActionModel(nn.Module):
         x = self.fc2( x )
         x = F.relu( x )
 
-        x = self.fc3( x ) # reward
-        # x = torch.tanh( x )
+        x = self.value( x ) # reward        
 
         return x
 
@@ -332,16 +319,21 @@ class DQNModel(nn.Module):
 
         self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
-        # self.fc3 = layer_init( nn.Linear(fc2_units, fc3_units) )
-        # self.fc4 = layer_init( nn.Linear(fc3_units, fc4_units) )
+        self.fc3 = layer_init( nn.Linear(fc2_units, fc3_units) )
+        self.fc4 = layer_init( nn.Linear(fc3_units, fc4_units) )
 
-        self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )
+        self.dropout = nn.Dropout(.25)
+
+        self.fc_action = layer_init( nn.Linear(fc4_units, action_size) )
 
     def forward(self, state):
-        x = F.relu( self.fc1(state) )
+
+        x = self.dropout(state)
+
+        x = F.relu( self.fc1(x) )
         x = F.relu( self.fc2(x) )
-        # x = F.relu( self.fc3(x) )
-        # x = F.relu( self.fc4(x) )
+        x = F.relu( self.fc3(x) )
+        x = F.relu( self.fc4(x) )
 
         x = self.fc_action(x)
 
@@ -356,29 +348,31 @@ class DQNModel(nn.Module):
 
 class ActorModel(nn.Module):
 
-    def __init__(self, state_size, action_size, fc1_units=64, fc2_units=32):
+    def __init__(self, encoding_size, action_size, fc1_units=128, fc2_units=64, device='cpu'):
         super(ActorModel, self).__init__() 
 
-        self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
+        self.encoding_size = encoding_size
+        self.action_size = action_size
+
+        self.fc1 = layer_init( nn.Linear(encoding_size, fc1_units) )
         self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
-
+        
         self.fc_action = layer_init( nn.Linear(fc2_units, action_size) )
+        self.fc_action.weight.data.uniform_(-3e-3, 3e-3)
 
-    def forward(self, state, action=None):
-        x = F.relu( self.fc1(state) )
-        x = F.relu( self.fc2(x) )
+    def forward(self, state):
+        x = self.fc1(state)
+        x = F.relu( x )
 
-        probs = F.softmax( self.fc_action(x), dim=1 )
+        x = self.fc2( x )
+        x = F.relu( x )
 
-        dist = Categorical( probs )
+        x = self.fc_action( x )
 
-        if action is None:
-            action = dist.sample()
+        # action dist
+        x = ( x - x.mean() ) / x.std() + 1.0e-10
 
-        log_prob = dist.log_prob( action )
-        entropy = dist.entropy()
-
-        return action, log_prob, entropy
+        return x
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):
@@ -389,21 +383,33 @@ class ActorModel(nn.Module):
 
 class CriticModel(nn.Module):
 
-    def __init__(self, state_size, fc1_units=64, fc2_units=32):
+    def __init__(self, encoding_size, action_size, fc1_units=128, fc2_units=64, device='cpu'):
         super(CriticModel, self).__init__() 
-
-        self.fc1 = layer_init( nn.Linear(state_size, fc1_units) )
-        self.fc2 = layer_init( nn.Linear(fc1_units, fc2_units) )
         
-        self.fc_critic = layer_init( nn.Linear(fc2_units, 1) )
+        self.encoding_size = encoding_size
+        self.action_size = action_size 
 
-    def forward(self, state):
-        x = F.relu( self.fc1(state) )
-        x = F.relu( self.fc2(x) )
+        self.fc1 = layer_init( nn.Linear(encoding_size, fc1_units) )
+        self.fc2 = layer_init( nn.Linear(fc1_units + action_size, fc2_units) )
         
-        value = self.fc_critic(x)        
+        self.fc_value = layer_init( nn.Linear(fc2_units, 1) )
+        self.fc_value.weight.data.uniform_(-3e-3, 3e-3)
 
-        return value
+    def forward(self, state, dist):
+        x = self.fc1(state)
+        x = F.relu( x )
+
+        x = torch.cat( (x, dist), dim=1 )
+
+        x = self.fc2( x )
+        x = F.relu( x )
+
+        x = self.fc_value( x )
+
+        # action dist
+        # x = ( x - x.mean() ) / x.std() + 1.0e-10
+
+        return x
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):
@@ -411,4 +417,3 @@ class CriticModel(nn.Module):
 
     def checkpoint(self, checkpoint):
         torch.save(self.state_dict(), checkpoint)
-
