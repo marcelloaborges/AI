@@ -67,10 +67,10 @@ class Agent:
         self.loss = 0
     
     def act(self, state):
-        
-        action = None
+                
+        action_values = None
         if np.random.uniform() < self.EPS:
-            action = random.choice( np.arange(self.ACTION_SIZE) )
+            action_values = np.random.uniform( -3, 3, self.ACTION_SIZE )            
 
         else:
             state = torch.from_numpy(state).float().unsqueeze(0).to(self.DEVICE)
@@ -86,12 +86,13 @@ class Agent:
             self.cnn_model.train()
 
             action_values = action_values.cpu().data.numpy()
-            action = np.argmax( action_values )
+        
+        action = np.argmax( action_values )
             
         self.EPS *= self.EPS_DECAY
         self.EPS = max(self.EPS_MIN, self.EPS) 
 
-        return action
+        return action, action_values
 
     def step(self, state, action, reward, next_state, done):
             
@@ -105,7 +106,7 @@ class Agent:
             # rewards_future = rewards * discount
             # rewards_future = rewards_future[::-1].cumsum(axis=0)[::-1]
 
-            norm_rewards = ( rewards - rewards.mean() ) / rewards.std() + 1e-10
+            norm_rewards = ( rewards - rewards.mean() ) / ( rewards.std() + 1e-10 )
 
             R = 0
             nR = 0
@@ -113,7 +114,7 @@ class Agent:
                 R += self.GAMMA**idx * rewards[idx]
                 nR += self.GAMMA**idx * norm_rewards[idx]
             
-            self.memory.add( states[0], actions[0], R, next_states[-1], dones[-1] )
+            self.memory.add( states[0], actions[0], nR, next_states[-1], dones[-1] )
                 
         if len( self.memory ) < self.BURNIN:
             return self.rnd_loss, self.loss
@@ -187,6 +188,7 @@ class Agent:
                 
                 # calc munchausen reward:
                 ie_rewards = rewards + Ri.detach() * 0.0001
+                # munchausen_reward = (rewards.unsqueeze(-1) + self.ALPHA * torch.clamp(munchausen_addon, min=self.LO, max=0))
                 munchausen_reward = (ie_rewards.unsqueeze(-1) + self.ALPHA * torch.clamp(munchausen_addon, min=self.LO, max=0))
                 
                 # Compute Q targets for current states 

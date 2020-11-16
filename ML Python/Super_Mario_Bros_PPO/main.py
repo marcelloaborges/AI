@@ -1,34 +1,70 @@
 import os
 import numpy as np
+from collections import deque
+
+import random
+
+import cv2
+import matplotlib.pyplot as plt
+
+import env_wrapper
 
 import torch
 import torch.optim as optim
 
-from nes_py.wrappers import JoypadSpace
-import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from torchvision import models, transforms
 
-from cnn import CNN
-from ppo import PPOActor, PPOCritic
-from rnd import RNDTargetModel, RNDPredictorModel
+from PIL import Image
 
-from agent import Agent
-from optimizer import Optimizer
+from model import PPOModel, ActorModel, CriticModel
 
-from memory import Memory
+from agent_ppo import AgentPPO
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+gpu = torch.cuda.get_device_name(0)
 
 # ORIGINAL
 # env = gym_super_mario_bros.make('SuperMarioBros-v0')
 # BLACK
-env = gym_super_mario_bros.make('SuperMarioBros-v1')
+# env = gym_super_mario_bros.make('SuperMarioBros-v1')
 # PIXEL
 # env = gym_super_mario_bros.make('SuperMarioBros-v2')
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
+# ONLY FIRST STATE
+# env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+# RANDOM STAGES
+# env = gym_super_mario_bros.make('SuperMarioBrosRandomStages-v0')
 
-state_info = env.reset()
+from gym_super_mario_bros.actions import RIGHT_ONLY, SIMPLE_MOVEMENT, COMPLEX_MOVEMENT
+
+# actions for the simple run right environment
+CUSTOM_MOVEMENT = [
+    ['NOOP'], # NADA        
+    ['right', 'B'], # CORRER
+    ['right', 'A', 'B'], # CORRER + PULAR
+]
+
+# HYPERPARAMETERS
+N_STACKED_FRAMES = 4
+
+LR = 1e-4
+T_STEPS = 768
+GAMMA = 0.95
+EPSILON = 0.1
+ENTROPY_WEIGHT = 0.001
+
+BATCH_SIZE = 32
+
+
+CHECKPOINT_FOLDER = './knowlegde/'
+CHECKPOINT_PPO = CHECKPOINT_FOLDER + 'PPO.pth'
+CHECKPOINT_ACTOR = CHECKPOINT_FOLDER + 'ACTOR.pth'
+CHECKPOINT_CRITIC = CHECKPOINT_FOLDER + 'CRITIC.pth'
+
+
+env = env_wrapper.create_train_env( 1, 1, CUSTOM_MOVEMENT, N_STACKED_FRAMES )
+
+orig, state_info = env.reset()
 action_info = env.action_space.sample()
 action_size = env.action_space.n
 
@@ -38,102 +74,142 @@ print('states len {}'.format(state_info.shape))
 print('actions len {}'.format(action_size))
 
 
-# hyperparameters
-N_STEP = 4
-GAMMA = 0.99
-BATCH_SIZE = 32
-LR_ACTOR = 1e-4
-LR_CRITIC = 1e-4
-EPSILON = 0.1
-ENTROPY_WEIGHT = 0.001
-LR = 5e-4
-ACTOR_LR = 5e-5
-CRITIC_LR = 5e-5
+# MODELS
+# ppo_model = PPOModel( N_STACKED_FRAMES , action_size ).to(DEVICE)
+actor_model = ActorModel( N_STACKED_FRAMES, action_size ).to(DEVICE)
+critic_model = CriticModel( N_STACKED_FRAMES ).to(DEVICE)
+optimizer = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()), lr=LR )
 
-RND_LR = 5e-4
-RND_OUTPUT_SIZE = 128
-RND_UPDATE_EVERY = 32
+actor_model.load( CHECKPOINT_ACTOR, DEVICE )
+critic_model.load( CHECKPOINT_CRITIC, DEVICE )
 
-CHECKPOINT_CNN = './checkpoint_cnn.pth'
-CHECKPOINT_ACTOR = './checkpoint_actor.pth'
-CHECKPOINT_CRITIC = './checkpoint_critic.pth'
-CHECKPOINT_RND_TARGET = './checkpoint_rnd_target.pth'
-CHECKPOINT_RND_PREDICTOR = './checkpoint_rnd_predictor.pth'
+# AGENT
+agent = AgentPPO(
+    DEVICE,
+    BATCH_SIZE,
+    GAMMA, EPSILON, ENTROPY_WEIGHT,
+    actor_model, critic_model, optimizer
+    )
 
-cnn = CNN().to(DEVICE)
+# TRAIN
 
-actor_model = PPOActor( cnn.state_size, action_size ).to(DEVICE)
-critic_model = PPOCritic( cnn.state_size, action_size ).to(DEVICE)
+def train():            
 
-optimizer = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()) + list(cnn.parameters()), lr=LR, weight_decay=1e-4 )
+    fig, axs = plt.subplots(1)
+    fig.suptitle('Vertically stacked subplots')
+    ave_pos = deque(maxlen=100)
+    flags = deque(maxlen=100)
+    episode = 0
 
-rnd_target = RNDTargetModel( cnn.state_size ).to(DEVICE)
-rnd_predictor = RNDPredictorModel( cnn.state_size ).to(DEVICE)
-rnd_optimizer = optim.Adam( rnd_predictor.parameters(), lr=RND_LR, weight_decay=1e-4 )
+    while np.count_nonzero(flags) < 90:
 
-if os.path.isfile(CHECKPOINT_CNN):
-    cnn.load_state_dict(torch.load(CHECKPOINT_CNN))
-    
-    actor_model.load_state_dict(torch.load(CHECKPOINT_ACTOR))
-    critic_model.load_state_dict(torch.load(CHECKPOINT_CRITIC))
+        orig, state = env.reset()
 
-    rnd_target.load_state_dict(torch.load(CHECKPOINT_RND_TARGET))
-    rnd_predictor.load_state_dict(torch.load(CHECKPOINT_RND_PREDICTOR))
+        # while True:        
+        for step in range(T_STEPS):
+            
+            action, probs, log_prob = agent.act( state )
+            
+            orig, next_state, reward, done, info = env.step(action)
+            
+            agent.step( state, action, log_prob, reward, next_state, done )            
+
+            render( fig, axs, orig, probs )
+
+            state = next_state
+
+            if done or step == T_STEPS - 1:                
+                loss = agent.learn()
+
+                if info['flag_get']:
+                    flags.append(1)
+                else:
+                    flags.append(0)
+
+                ave_pos.append( info['x_pos'] )
+
+                episode += 1
+
+                print('E: {:5} STEP: {:5} POS: {:.0f} R: {:.2f} F: {} L: {:.5f}'.format(
+                    episode + 1, step, np.average( ave_pos ), reward, np.count_nonzero(flags), loss))
+
+                break
+
+        actor_model.checkpoint( CHECKPOINT_ACTOR )
+        critic_model.checkpoint( CHECKPOINT_CRITIC )
+
+    env.close()
+
+def teste(n_episodes):            
+
+    fig, axs = plt.subplots(1)
+    fig.suptitle('Vertically stacked subplots')
+    ave_pos = deque(maxlen=100)
+    flags = deque(maxlen=100)
+    episode = 0
+
+    for episode in range(n_episodes):    
+
+        orig, state = env.reset()
+        step = 0
+
+        while True:        
+            
+            action, probs, _ = agent.act( state )
+            
+            orig, next_state, reward, done, info = env.step(action)
+            
+            # agent.step( state, action, log_prob, reward, next_state, done )            
+
+            render( fig, axs, orig, probs )
+
+            state = next_state
+            step += 1
+
+            if done:
+                if info['flag_get']:
+                    flags.append(1)
+                else:
+                    flags.append(0)
+
+                ave_pos.append( info['x_pos'] )
+
+                episode += 1
+
+                print('E: {:5} STEP: {:5} POS: {:.0f} R: {:.2f} F: {}'.format(
+                    episode + 1, step, np.average( ave_pos ), reward, np.count_nonzero(flags) ))
+
+                break
+
+    env.close()
 
 
-memory = Memory()
-agent = Agent(DEVICE, cnn, actor_model)
+def render(fig, axs, state, probs):
 
-optimizer = Optimizer(
-    DEVICE, 
-    memory,
-    cnn, 
-    actor_model, critic_model, optimizer,     
-    rnd_target, rnd_predictor, rnd_optimizer,
-    N_STEP, GAMMA, EPSILON, ENTROPY_WEIGHT)
+    x = np.arange( action_size )
+    # y = probs.reshape(1, -1)
+    y = probs
+
+    axs.clear()
+    axs.bar( x, y[0,:], color='red')
+
+    fig.canvas.draw()
+
+    # convert canvas to image
+    img = np.fromstring( fig.canvas.tostring_rgb(), dtype=np.uint8, sep='' )
+    img  = img.reshape( fig.canvas.get_width_height()[::-1] + (3,) )
+
+    # img is rgb, convert to opencv's default bgr
+    img = cv2.resize( cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (300,300) )
+    s = cv2.resize( state, (300,300) )
+    img = np.hstack( ( s[:,:,::-1], img ) )    
+   
+    # display image with opencv or any operation you like
+    cv2.imshow("game", img)
+    cv2.waitKey(1)
 
 
-# t_steps = 500
-n_episodes = 100
+# train()
 
-for episode in range(n_episodes):
-
-    total_reward = 0
-    life = 2
-
-    state = env.reset()
-
-    while True:
-    # for t in range(t_steps):
-
-        # action = env.action_space.sample()
-        action, log_prob = agent.act( state )
-
-        next_state, reward, done, info = env.step( action )
-
-        loss, rnd_loss = optimizer.step( state, action, log_prob, reward, next_state )
-
-        env.render()
-
-        total_reward += reward
-
-        print('\rEpisode: {} \tTotal: \t{} \tReward: \t{} \tLife: \t{} \tLoss: \t{:.5f} \tRND: \t{:.5f}'.format( episode + 1, total_reward, reward, life, loss, rnd_loss ), end='')
-
-        if done:
-            break
-
-        if info['life'] < life:
-            total_reward = 0
-            life = info['life']
-
-        state = next_state
-
-    cnn.checkpoint(CHECKPOINT_CNN)    
-    
-    actor_model.checkpoint(CHECKPOINT_ACTOR)
-    critic_model.checkpoint(CHECKPOINT_CRITIC)
-
-    rnd_target.checkpoint(CHECKPOINT_RND_TARGET)
-    rnd_predictor.checkpoint(CHECKPOINT_RND_PREDICTOR)
-
-env.close()
+n_episodes = 10
+teste(n_episodes)

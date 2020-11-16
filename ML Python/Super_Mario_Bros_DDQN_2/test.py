@@ -1,13 +1,16 @@
-import gym
-# import gym_pull
-# gym_pull.pull('github.com/ppaquette/gym-super-mario')
-env = gym.make('SuperMarioBros-1-1-v0')
-# env = gym.make('meta-SuperMarioBros-v0')
+from nes_py.wrappers import JoypadSpace
+import gym_super_mario_bros
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
-env.reset()
-total_score = 0
-while total_score < 32000:
-    action = [0] * 6
-    obs, reward, is_finished, info = env.step(action)
+env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = JoypadSpace(env, SIMPLE_MOVEMENT)
+
+done = True
+for step in range(5000):
+    if done:
+        state = env.reset()
+    # state, reward, done, info = env.step(env.action_space.sample())
+    state, reward, done, info = env.step(4)
     env.render()
-    total_score = info["total_reward"]
+
+env.close()

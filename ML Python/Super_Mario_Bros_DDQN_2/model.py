@@ -2,6 +2,9 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions import Categorical
+
+import torch.optim as optim
 
 def layer_init(layer, w_scale=1.0):
     nn.init.orthogonal_(layer.weight.data)
@@ -9,105 +12,75 @@ def layer_init(layer, w_scale=1.0):
     nn.init.constant_(layer.bias.data, 0)
     return layer
 
-class Encoder(nn.Module):
-    def __init__(self, channels=8, compressed_features_size=32, fc1_units=256):
-        super(Encoder, self).__init__()
+def kaiming_layer_init(layer, mode='fan_out', nonlinearity='relu'):
+    nn.init.kaiming_normal_(layer.weight, mode='fan_out', nonlinearity='relu')
+    return layer
 
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=3, stride=3)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=2)
+def kaiming_weight_init(weight, mode='fan_out', nonlinearity='relu'):
+    nn.init.kaiming_normal_(weight, mode='fan_out', nonlinearity='relu')
+    return weight
 
-        self.flatten_size = 32 * 10 * 9
+def orthogonal_initialize_weights(modules):
+    for module in modules:
+        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+            nn.init.orthogonal_(module.weight, nn.init.calculate_gain('relu'))
+            # nn.init.xavier_uniform_(module.weight)
+            # nn.init.kaiming_uniform_(module.weight)
+            nn.init.constant_(module.bias, 0)
 
-        self.fc1_mu = nn.Linear( self.flatten_size, fc1_units )
-        self.mu = nn.Linear( fc1_units, compressed_features_size )
 
-        self.fc1_logvar = nn.Linear( self.flatten_size, fc1_units )
-        self.logvar = nn.Linear( fc1_units, compressed_features_size )
+class PPOModel(nn.Module):
+    def __init__(self, n_frames, action_size):
+        super(PPOModel, self).__init__()
+        self.conv1 = nn.Conv2d(n_frames, 32, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.linear = nn.Linear(32 * 6 * 6, 512)        
+        # self.linear1 = nn.Linear(32 * 6 * 16, 1024)
+        # self.linear2 = nn.Linear(1024, 512)
+        self.critic_linear = nn.Linear(512, 1)
+        self.actor_linear = nn.Linear(512, action_size)
+        self._initialize_weights()
 
-    def forward(self, state):        
-        # Encoder
-        x = self.conv1( state )
-        x = F.relu( x )
-        x = self.conv2( x )
-        x = F.relu( x )
+    def _initialize_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+                nn.init.orthogonal_(module.weight, nn.init.calculate_gain('relu'))
+                # nn.init.xavier_uniform_(module.weight)
+                # nn.init.kaiming_uniform_(module.weight)
+                nn.init.constant_(module.bias, 0)
 
-        x = x.view( -1, self.flatten_size )        
-
-        mu = self.fc1_mu( x )
-        mu = F.relu( mu )
-        mu = self.mu( mu )
-
-        logvar = self.fc1_logvar( x )
-        logvar = F.relu( logvar )
-        logvar = self.logvar( logvar )
-        
-        return mu, logvar
-
-    def load(self, checkpoint, device:'cpu'):     
-        if os.path.isfile(checkpoint):
-            self.load_state_dict(torch.load(checkpoint))
-
-    def checkpoint(self, checkpoint):
-        torch.save(self.state_dict(), checkpoint)
-
-class Decoder(nn.Module):
-    def __init__(self, channels=8, compressed_features_size=32, fc1_units=256):
-        super(Decoder, self).__init__()        
-
-        self.flatten_size = 32 * 10 * 9
-        
-        self.fc1 = nn.Linear( compressed_features_size, fc1_units)
-        self.fc2 = nn.Linear( fc1_units, self.flatten_size)
-
-        self.conv_t1 = nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=(3,4), stride=2)
-        self.conv_t2 = nn.ConvTranspose2d(in_channels=32, out_channels=channels, kernel_size=(4,3), stride=3)
-
-    def forward(self, out_features):
-        x = self.fc1( out_features )
-        x = F.relu( x )
-        x = self.fc2( x )
-        x = F.relu( x )
-
-        x = x.view(-1, 32, 10, 9)
-        
-        x = self.conv_t1(x)
+    def forward(self, x, action=None):
+        x = self.conv1(x)
         x = F.relu(x)
-        x = self.conv_t2(x)
-        x = torch.sigmoid(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
 
-        return x
-    
-    def load(self, checkpoint, device:'cpu'):
-        if os.path.isfile(checkpoint):
-            self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
+        x = x.view( x.size(0), -1 )
+        x = self.linear(x)
+        # x = self.linear1(x)        
+        # x = self.linear2(x)
 
-    def checkpoint(self, checkpoint):
-        torch.save(self.state_dict(), checkpoint)
+        # ACTOR
+        logits = self.actor_linear(x)
+        probs = F.softmax( logits, dim=1 )
+        dist = Categorical( probs )
 
+        if action is None:
+            action = dist.sample()
 
-class DuelingDQN(nn.Module):
+        log_prob = dist.log_prob( action )
+        entropy = dist.entropy()
 
-    def __init__(self, encoded_state_size, action_size, fc1_units=32):
-        super(DuelingDQN, self).__init__()
+        # CRITIC
+        value = self.critic_linear(x)
 
-        # FC
-        self.fc1 = layer_init( nn.Linear(encoded_state_size, fc1_units) )
-
-        self.actions = layer_init( nn.Linear(fc1_units, action_size) )
-        self.value = layer_init( nn.Linear(fc1_units, 1) )
-
-    def forward(self, state):        
-        x = self.fc1(state)
-        x = F.relu( x )
-                        
-        adv = self.actions( x )
-        adv = adv - adv.mean()
-                
-        value = self.value(x)
-
-        actions_values = adv + value
-
-        return actions_values
+        return action, probs, log_prob, entropy, value
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):
@@ -116,89 +89,136 @@ class DuelingDQN(nn.Module):
     def checkpoint(self, checkpoint):
         torch.save(self.state_dict(), checkpoint)
 
-class DQN(nn.Module):
 
-    def __init__(self, encoded_state_size, action_size, fc1_units=32):
-        super(DQN, self).__init__()
+class ActorModel(nn.Module):
 
-        # FC
-        self.fc1 = layer_init( nn.Linear(encoded_state_size, fc1_units) )
+    def __init__(self, n_frames, action_size):
+        super(ActorModel, self).__init__()       
 
-        self.actions = layer_init( nn.Linear(fc1_units, action_size) )
+        # EMBEDDING
+        self.conv1 = nn.Conv2d(n_frames, 32, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.linear = nn.Linear(32 * 6 * 6, 512)
 
-    def forward(self, state):        
-        x = self.fc1(state)
-        x = F.relu( x )
-                        
-        actions = self.actions( x )
+        # ACTION
+        self.actor_linear = nn.Linear(512, action_size)
+        
+        orthogonal_initialize_weights(self.modules())
 
-        return actions
+    def forward(self, state, action=None):
+
+        x = self.conv1(state)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
+
+        x = x.view( x.size(0), -1 )
+        x = self.linear(x)
+
+        # ACTOR
+        logits = self.actor_linear(x)
+        probs = F.softmax( logits, dim=1 )
+        dist = Categorical( probs )
+
+        if action is None:
+            action = dist.sample()
+
+        log_prob = dist.log_prob( action )
+        entropy = dist.entropy()
+
+        return action, probs, log_prob, entropy
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):
             self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
 
     def checkpoint(self, checkpoint):
-        torch.save(self.state_dict(), checkpoint)    
+        torch.save(self.state_dict(), checkpoint)
 
-class Model(nn.Module):
+class CriticModel(nn.Module):
 
-    def __init__(self, action_size, channels=3, fc1_units=128, fc2_units=64):
-        super(Model, self).__init__()
+    def __init__(self, n_frames):
+        super(CriticModel, self).__init__()         
+
+        # EMBEDDING
+        self.conv1 = nn.Conv2d(n_frames, 32, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.linear = nn.Linear(32 * 6 * 6, 512)
+
+        # VALUE
+        self.critic_linear = nn.Linear(512, 1)
         
-        self.channels = channels   
-        self.filters_size = 32        
+        orthogonal_initialize_weights(self.modules())
 
-        # Dimensionality
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=self.filters_size, kernel_size=3, padding=1 )        
-        self.pool1 = nn.MaxPool2d( 2, 2 )
-        self.conv2 = nn.Conv2d(in_channels=self.filters_size, out_channels=self.filters_size, kernel_size=3, padding=1 )
-        self.pool2 = nn.MaxPool2d( 2, 2 )
-        self.conv3 = nn.Conv2d(in_channels=self.filters_size, out_channels=self.filters_size, kernel_size=3, padding=1 )
-        self.pool3 = nn.MaxPool2d( 2, 2 )
-
-        self.flatten_size = self.filters_size * 10 * 10
-
-        # DQN
-        self.fc1 = layer_init( nn.Linear(self.flatten_size, fc1_units) )        
+    def forward(self, state):
         
-        # self.actions = layer_init( nn.Linear(fc2_units, action_size) )
+        x = self.conv1(state)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
 
-        self.actions = layer_init( nn.Linear(fc1_units, action_size) )
-        self.value = layer_init( nn.Linear(fc1_units, 1) )
+        x = x.view( x.size(0), -1 )
+        x = self.linear(x)
 
-    def forward(self, state):        
-        x = state
+        # CRITIC
+        value = self.critic_linear(x)
 
-        # Encoding        
-        x = self.conv1( x )
-        x = F.relu( x )        
-        x = self.pool1( x )
-                
-        x = self.conv2( x )
-        x = F.relu( x )
-        x = self.pool2( x )
+        return value
 
-        x = self.conv3( x )
-        x = F.relu( x )
-        x = self.pool3( x )
+    def load(self, checkpoint, device:'cpu'):
+        if os.path.isfile(checkpoint):
+            self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
 
-        x = x.view( -1, self.flatten_size )
+    def checkpoint(self, checkpoint):
+        torch.save(self.state_dict(), checkpoint)
 
-        # DQN
-        x = self.fc1( x )
-        x = F.relu( x )
+class DDQNModel(nn.Module):
 
-        # actions_values = self.actions( x )        
+    def __init__(self, n_frames, action_size):
+        super(DDQNModel, self).__init__()       
 
-        adv = self.actions( x )
-        adv = adv - adv.mean()
-                
-        value = self.value(x)
+        # EMBEDDING
+        self.conv1 = nn.Conv2d(n_frames, 32, 3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.linear = nn.Linear(32 * 6 * 6, 512)
 
-        actions_values = adv + value
+        # ACTION
+        self.actor_linear = nn.Linear(512, action_size)
+        
+        orthogonal_initialize_weights(self.modules())
 
-        return actions_values
+    def forward(self, state, action=None):
+
+        x = self.conv1(state)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = F.relu(x)
+
+        x = x.view( x.size(0), -1 )
+        x = self.linear(x)
+
+        # ACTOR
+        action_values = self.actor_linear(x)
+        
+        return action_values
 
     def load(self, checkpoint, device:'cpu'):
         if os.path.isfile(checkpoint):

@@ -62,9 +62,19 @@ img_w = int(state_example.shape[0]/2)
 img_h = int(state_example.shape[1]/2)
 
 
+# # actions for very simple movement
+# SIMPLE_MOVEMENT = [
+#     ['NOOP'],
+#     ['right'],
+#     ['right', 'A'],
+#     ['right', 'B'],
+#     ['right', 'A', 'B'],
+#     ['A'],
+#     ['left'],
+# ]
 
 # HYPERPARAMETERS
-T_FRAME_SKIP = 8
+T_FRAME_SKIP = 4
 
 LR = 5e-4
 EPS = 1
@@ -73,10 +83,10 @@ EPS_MIN = 0.1
 ENTROPY_TAU = 3e-2
 ALPHA = 0.9
 LO = -1
-GAMMA = 0.99
+GAMMA = 0.95
 TAU = 1e-3
 
-N_STEPS = 1
+N_STEPS = 4
 UPDATE_EVERY = 32
 BATCH_SIZE = 256
 
@@ -163,7 +173,7 @@ def train(n_episodes, height_pixel_cut=15):
         steps = 3000
         for step in range(steps):
             
-            action = agent.act( state )
+            action, action_values = agent.act( state )
             
             next_state, reward, done, info = env.step(action)
             # reward = np.sign(reward)
@@ -183,7 +193,7 @@ def train(n_episodes, height_pixel_cut=15):
                     rnd_loss, loss
                     ), end='')                
             
-                render( fig, axs, s, action )
+                render( fig, axs, s, action_values )
             # env.render()            
 
             state = next_state
@@ -199,12 +209,10 @@ def train(n_episodes, height_pixel_cut=15):
     env.close()
 
 
-def render(fig, axs, state, action):
+def render(fig, axs, state, action_values):
 
     x = np.arange( action_size )
-    y = np.zeros( action_size )
-    y[action] = 1
-    y = y.reshape(-1, action_size )
+    y = action_values.reshape(1, -1)
 
     axs.clear()
     axs.bar( x, y[0,:], color='red')
