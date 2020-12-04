@@ -28,7 +28,6 @@ def orthogonal_initialize_weights(modules):
             # nn.init.kaiming_uniform_(module.weight)
             nn.init.constant_(module.bias, 0)
 
-
 class PPOModel(nn.Module):
     def __init__(self, n_frames, action_size):
         super(PPOModel, self).__init__()
@@ -171,6 +170,124 @@ class CriticModel(nn.Module):
 
         x = x.view( x.size(0), -1 )
         x = self.linear(x)
+
+        # CRITIC
+        value = self.critic_linear(x)
+
+        return value
+
+    def load(self, checkpoint, device:'cpu'):
+        if os.path.isfile(checkpoint):
+            self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
+
+    def checkpoint(self, checkpoint):
+        torch.save(self.state_dict(), checkpoint)
+
+
+class EncoderModel(nn.Module):
+    def __init__(self, n_frames, action_size):
+        super(EncoderModel, self).__init__()
+
+        self.encoded_size = 512
+
+        self.conv1 = nn.Conv2d(n_frames, 32, 3, stride=2, padding=1)
+        self.bn1 = nn.BatchNorm2d( 32 )
+        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.bn2 = nn.BatchNorm2d( 32 )
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.bn3 = nn.BatchNorm2d( 32 )
+        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.bn4 = nn.BatchNorm2d( 32 )
+        self.linear = nn.Linear(32 * 6 * 6, self.encoded_size)
+
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+                nn.init.orthogonal_(module.weight, nn.init.calculate_gain('relu'))
+                nn.init.constant_(module.bias, 0)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = F.relu(x)        
+
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = F.relu(x)        
+
+        x = self.conv4(x)
+        x = self.bn4(x)
+        x = F.relu(x)        
+
+        x = x.view( x.size(0), -1 )
+        x = self.linear(x)
+
+        return x
+
+    def load(self, checkpoint, device:'cpu'):
+        if os.path.isfile(checkpoint):
+            self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
+
+    def checkpoint(self, checkpoint):
+        torch.save(self.state_dict(), checkpoint)
+
+class ActorModel_(nn.Module):
+
+    def __init__(self, encoded_size, action_size, fc1_units=256):
+        super(ActorModel, self).__init__()
+
+        # ACTION
+        self.fc1 = layer_init( nn.Linear(encoded_size, fc1_units) )
+        self.actor_linear = nn.Linear(fc1_units, action_size)
+        
+        orthogonal_initialize_weights(self.modules())
+
+    def forward(self, state, action=None):
+
+        x = self.fc1(state)
+        x = F.relu(x)
+
+        # ACTOR
+        logits = self.actor_linear(x)
+        probs = F.softmax( logits, dim=1 )
+        dist = Categorical( probs )
+
+        if action is None:
+            action = dist.sample()
+
+        log_prob = dist.log_prob( action )
+        entropy = dist.entropy()
+
+        return action, probs, log_prob, entropy
+
+    def load(self, checkpoint, device:'cpu'):
+        if os.path.isfile(checkpoint):
+            self.load_state_dict(torch.load(checkpoint, map_location={'cuda:0': device.type}))
+
+    def checkpoint(self, checkpoint):
+        torch.save(self.state_dict(), checkpoint)
+
+class CriticModel_(nn.Module):
+
+    def __init__(self, encoded_size, fc1_units=256):
+        super(CriticModel, self).__init__()
+
+        # VALUE
+        self.fc1 = layer_init( nn.Linear(encoded_size, fc1_units) )
+        self.critic_linear = nn.Linear(fc1_units, 1)
+        
+        orthogonal_initialize_weights(self.modules())
+
+    def forward(self, state):
+        
+        x = self.fc1(state)
+        x = F.relu(x)
 
         # CRITIC
         value = self.critic_linear(x)

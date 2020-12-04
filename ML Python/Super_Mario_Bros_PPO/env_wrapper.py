@@ -81,8 +81,12 @@ def process_frame_rgb(frame):
     else:
         return frame, np.zeros((3, 84, 252))
 
-def create_train_env(world, stage, actions, n_stacked_frames, output_path=None):
-    env = gym_super_mario_bros.make("SuperMarioBros-{}-{}-v0".format(world, stage))    
+def create_train_env(world, stage, actions, n_stacked_frames, all_states=False):
+    env = None
+    if not all_states:        
+        env = gym_super_mario_bros.make("SuperMarioBros-{}-{}-v0".format(world, stage))    
+    else:
+        env = gym_super_mario_bros.make("SuperMarioBros-v0")
 
     env = JoypadSpace(env, actions)
     env = CustomReward(env)

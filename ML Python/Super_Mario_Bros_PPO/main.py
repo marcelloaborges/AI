@@ -57,12 +57,8 @@ BATCH_SIZE = 32
 
 
 CHECKPOINT_FOLDER = './knowlegde/'
-CHECKPOINT_PPO = CHECKPOINT_FOLDER + 'PPO.pth'
-CHECKPOINT_ACTOR = CHECKPOINT_FOLDER + 'ACTOR.pth'
-CHECKPOINT_CRITIC = CHECKPOINT_FOLDER + 'CRITIC.pth'
 
-
-env = env_wrapper.create_train_env( 1, 1, CUSTOM_MOVEMENT, N_STACKED_FRAMES )
+env = env_wrapper.create_train_env( 1, 1, SIMPLE_MOVEMENT, N_STACKED_FRAMES )
 
 orig, state_info = env.reset()
 action_info = env.action_space.sample()
@@ -80,9 +76,6 @@ actor_model = ActorModel( N_STACKED_FRAMES, action_size ).to(DEVICE)
 critic_model = CriticModel( N_STACKED_FRAMES ).to(DEVICE)
 optimizer = optim.Adam( list(actor_model.parameters()) + list(critic_model.parameters()), lr=LR )
 
-actor_model.load( CHECKPOINT_ACTOR, DEVICE )
-critic_model.load( CHECKPOINT_CRITIC, DEVICE )
-
 # AGENT
 agent = AgentPPO(
     DEVICE,
@@ -93,15 +86,25 @@ agent = AgentPPO(
 
 # TRAIN
 
-def train():            
+def train(world, stage, plot=False):
 
     fig, axs = plt.subplots(1)
     fig.suptitle('Vertically stacked subplots')
-    ave_pos = deque(maxlen=100)
     flags = deque(maxlen=100)
+    stacked_positions = deque(maxlen=30)
+    stacked_positions.append(1)
+    stacked_positions.append(2)
     episode = 0
 
-    while np.count_nonzero(flags) < 90:
+    env = env_wrapper.create_train_env( world, stage, SIMPLE_MOVEMENT, N_STACKED_FRAMES )
+
+    CHECKPOINT_ACTOR  = '{}ACTOR-{}-{}.pth'.format(CHECKPOINT_FOLDER, world, stage) 
+    CHECKPOINT_CRITIC = '{}CRITIC-{}-{}.pth'.format(CHECKPOINT_FOLDER, world, stage) 
+
+    actor_model.load( CHECKPOINT_ACTOR, DEVICE )
+    critic_model.load( CHECKPOINT_CRITIC, DEVICE )
+
+    while np.count_nonzero(flags) < 50:
 
         orig, state = env.reset()
 
@@ -114,11 +117,14 @@ def train():
             
             agent.step( state, action, log_prob, reward, next_state, done )            
 
-            render( fig, axs, orig, probs )
+            if plot:
+                render( fig, axs, orig, probs )
 
             state = next_state
 
-            if done or step == T_STEPS - 1:                
+            stacked_positions.append(info['x_pos'])
+
+            if done or step == T_STEPS - 1 or ( len(stacked_positions) >= 30 and np.std(stacked_positions) <= 0.5 ):
                 loss = agent.learn()
 
                 if info['flag_get']:
@@ -126,12 +132,10 @@ def train():
                 else:
                     flags.append(0)
 
-                ave_pos.append( info['x_pos'] )
-
                 episode += 1
 
-                print('E: {:5} STEP: {:5} POS: {:.0f} R: {:.2f} F: {} L: {:.5f}'.format(
-                    episode + 1, step, np.average( ave_pos ), reward, np.count_nonzero(flags), loss))
+                print('E: {:5} W: {} S: {} STEP: {:5} POS: {:5} R: {:.2f} F: {} L: {:.5f}'.format(
+                    episode, world, stage, step, info['x_pos'], reward, np.count_nonzero(flags), loss))
 
                 break
 
@@ -140,13 +144,20 @@ def train():
 
     env.close()
 
-def teste(n_episodes):            
+def test(n_episodes, world, stage, plot=True):            
 
     fig, axs = plt.subplots(1)
     fig.suptitle('Vertically stacked subplots')
-    ave_pos = deque(maxlen=100)
     flags = deque(maxlen=100)
     episode = 0
+
+    env = env_wrapper.create_train_env( world, stage, SIMPLE_MOVEMENT, N_STACKED_FRAMES )
+
+    CHECKPOINT_ACTOR  = '{}ACTOR-{}-{}.pth'.format(CHECKPOINT_FOLDER, world, stage) 
+    CHECKPOINT_CRITIC = '{}CRITIC-{}-{}.pth'.format(CHECKPOINT_FOLDER, world, stage) 
+
+    actor_model.load( CHECKPOINT_ACTOR, DEVICE )
+    critic_model.load( CHECKPOINT_CRITIC, DEVICE )
 
     for episode in range(n_episodes):    
 
@@ -159,9 +170,8 @@ def teste(n_episodes):
             
             orig, next_state, reward, done, info = env.step(action)
             
-            # agent.step( state, action, log_prob, reward, next_state, done )            
-
-            render( fig, axs, orig, probs )
+            if plot:
+                render( fig, axs, orig, probs )
 
             state = next_state
             step += 1
@@ -172,12 +182,8 @@ def teste(n_episodes):
                 else:
                     flags.append(0)
 
-                ave_pos.append( info['x_pos'] )
-
-                episode += 1
-
-                print('E: {:5} STEP: {:5} POS: {:.0f} R: {:.2f} F: {}'.format(
-                    episode + 1, step, np.average( ave_pos ), reward, np.count_nonzero(flags) ))
+                print('E: {:5} W: {} S:{} STEP: {:5} POS: {:5} R: {:.2f} F: {}'.format(
+                    episode + 1, world, stage, step, info['x_pos'], reward, np.count_nonzero(flags) ))
 
                 break
 
@@ -209,7 +215,13 @@ def render(fig, axs, state, probs):
     cv2.waitKey(1)
 
 
-# train()
+train(1, 2)
+# train(1, 2, True)
+test(10, 1, 2)
 
-n_episodes = 10
-teste(n_episodes)
+# for w in range(1, 8):
+#     for s in range(2, 4):
+#         train(w, s, False)
+
+#         n_episodes = 10
+#         test(n_episodes, w, s, True)
