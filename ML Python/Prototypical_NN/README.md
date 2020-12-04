@@ -37,29 +37,29 @@ About the neural network architecture, it is a simple convolutional architecture
 - For the neural model I used PyTorch with the following architecture:
   - Encoder    
                      
-    - Block 
-      conv1 = Conv2d( in_channels=1, out_channels=32, kernel_size=3, padding=1)
-      bn1   = BatchNorm2d(32)
-      Relu
-      mp1   = MaxPool2d(2)
+    - Conv Block 
+      - conv1 = Conv2d( in_channels=1, out_channels=32, kernel_size=3, padding=1)
+      - bn1   = BatchNorm2d(32)
+      - Relu
+      - mp1   = MaxPool2d(2)
 
-    - Block
-      conv2 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
-      bn2   = BatchNorm2d(32)
-      Relu
-      mp2   = MaxPool2d(2)
+    - Conv Block
+      - conv2 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
+      - bn2   = BatchNorm2d(32)
+      - Relu
+      - mp2   = MaxPool2d(2)
 
-    - Block
-      conv3 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
-      bn3   = BatchNorm2d(32)
-      Relu
-      mp3   = MaxPool2d(2)
+    - Conv Block
+      - conv3 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
+      - bn3   = BatchNorm2d(32)
+      - Relu
+      - mp3   = MaxPool2d(2)
 
-    - Block
-      conv4 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
-      bn4   = BatchNorm2d(32)
-      Relu
-      mp4   = MaxPool2d(2)        
+    - Conv Block
+      - conv4 = Conv2d( in_channels=32, out_channels=32, kernel_size=3, padding=1)
+      - bn4   = BatchNorm2d(32)
+      - Relu
+      - mp4   = MaxPool2d(2)        
 
   - Output
     Flatten (600)
