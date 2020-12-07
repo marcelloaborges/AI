@@ -124,7 +124,11 @@ def train(world, stage, plot=False):
 
             stacked_positions.append(info['x_pos'])
 
-            if done or step == T_STEPS - 1 or ( len(stacked_positions) >= 30 and np.std(stacked_positions) <= 0.5 ):
+            stagnant = len(stacked_positions) >= 30 and np.std(stacked_positions) <= 0.5
+            if stagnant:
+                reward -= 5
+
+            if done or step == T_STEPS - 1 or stagnant:
                 loss = agent.learn()
 
                 if info['flag_get']:
@@ -215,9 +219,9 @@ def render(fig, axs, state, probs):
     cv2.waitKey(1)
 
 
-train(1, 2)
-# train(1, 2, True)
-test(10, 1, 2)
+# train(1, 1)
+train(1, 3, True)
+test(10, 1, 3)
 
 # for w in range(1, 8):
 #     for s in range(2, 4):

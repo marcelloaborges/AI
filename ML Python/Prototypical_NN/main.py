@@ -84,6 +84,8 @@ def euclidean_dist(x, y):
 # HYPERPARAMETERS
 
 LR = 1e-3
+N_CLASS = 60 # NUMBER OF DIFFERENT CLASSES IN EACH BATCH
+
 DATA_FOLDER = './data/'
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -99,6 +101,9 @@ scaler = GradScaler()
 
 imgToTensor = transforms.ToTensor()
 tensorToImg = transforms.ToPILImage()
+
+
+# SAMPLES AND BATCHES
 
 samples = []   
 
@@ -128,9 +133,7 @@ for _, alphas, _ in os.walk( DATA_FOLDER ):
                     )    
 
 def train_eval():    
-
-    N_CLASS = 60 # NUMBER OF DIFFERENT CLASSES IN EACH BATCH    
-
+    
     idxs = BatchSampler( SubsetRandomSampler( range(0, len(samples)) ), N_CLASS, drop_last=True )    
 
     print('Loading batch imgs')
@@ -138,11 +141,9 @@ def train_eval():
     batches = []
     for ind in idxs:        
         selected_samples = [ samples[i] for i in ind ]
-
-        xs = []
-        xq = []
-        xt = []
-        for sample in selected_samples:
+       
+        batch = []
+        for i, sample in enumerate(selected_samples):
             
             def load_imgs(sample, prop):
                 imgs = []
@@ -156,42 +157,48 @@ def train_eval():
 
                 return imgs
 
-            s_xs = load_imgs( sample, 'support' )
-            s_xq = load_imgs( sample, 'query' )
-            s_xt = load_imgs( sample, 'test' )
-            
-            xs.append( s_xs )
-            xq.append( s_xq )
-            xt.append( s_xt )
+            xs = load_imgs( sample, 'support' )
+            xq = load_imgs( sample, 'query' )
+            xt = load_imgs( sample, 'test' )
 
-        batches.append({
-            'xs': xs,
-            'xq': xq,
-            'xt': xt
-        })
+            class_tensor = {
+                'idx': i,
+                'char': sample['class'],
+                'tensor': {
+                    'xs': xs,
+                    'xq': xq,
+                    'xt': xt
+                }
+            }
+
+            batch.append(class_tensor)
+        
+        batches.append(batch)
 
     print('Starting training')
 
     for epoch in range(100):   
 
-        for i, batch in enumerate(batches):
-        
-            with autocast():       
+        with autocast():       
+
+            for i, batch in enumerate(batches):                    
 
                 model.train()         
 
-                xs = torch.from_numpy( np.array( batch['xs'] ) ).float().to(DEVICE)
-                xq = torch.from_numpy( np.array( batch['xq'] ) ).float().to(DEVICE)
-                xt = torch.from_numpy( np.array( batch['xt'] ) ).float().to(DEVICE)
+                xs = []
+                xq = []
+                
+                xs.append( [ s['tensor']['xs'] for s in batch ] )
+                xq.append( [ q['tensor']['xs'] for q in batch ] )
+
+                xs = torch.from_numpy( np.array( xs ) ).float().to(DEVICE)
+                xq = torch.from_numpy( np.array( xq ) ).float().to(DEVICE)
 
                 xs = xs/255.
                 xq = xq/255.
-                xt = xt/255.
 
-                xs = xs.unsqueeze(2)
-                xq = xq.unsqueeze(2)
-                xt = xt.unsqueeze(2)
-
+                xs = xs.squeeze(0).unsqueeze(2)
+                xq = xq.squeeze(0).unsqueeze(2)
                 
                 # LEARN
                 n_class = xs.size(0)
@@ -228,59 +235,80 @@ def train_eval():
                 train_loss = train_loss.cpu().data.item()
                 train_acc = train_acc.cpu().data.item()                                
 
-                print('\rEpoch:{} batch:{}/{}'.format(epoch, i+1, len(batches)), end='')
+                print('\rEpoch:{} batch:{}/{}'.format(epoch+1, i+1, len(batches)), end='')
 
-        # NOT SAVING THE MODEL BECAUSE THE FUNCTION BUILDS RANDOM SAMPLES FOR EVERY REQUEST
-        # IF YOU NEED TO SAVE THE TRAINING USE THIS FUNCTION
-        # model.checkpoint('./MODEL.pth')
+            print('')
 
-        # TEST
-        model.eval()
+            # NOT SAVING THE MODEL BECAUSE THE FUNCTION BUILDS RANDOM SAMPLES FOR EVERY REQUEST
+            # IF YOU NEED TO SAVE THE TRAINING USE THIS FUNCTION
+            # model.checkpoint('./MODEL.pth')
 
-        test_batch = random.sample( batches, k=1 )[0]
+            # TEST
+            model.eval()
 
-        xs = torch.from_numpy( np.array( test_batch['xs'] ) ).float().to(DEVICE)        
-        xt = torch.from_numpy( np.array( test_batch['xt'] ) ).float().to(DEVICE)
+            test_batch = random.sample( batches, k=1 )[0]
 
-        xs = xs/255.        
-        xt = xt/255.
+            xs = []
+            xt = []
+            
+            xs.append( [ s['tensor']['xs'] for s in test_batch ] )
+            xt.append( [ t['tensor']['xt'] for t in test_batch ] )
 
-        xs = xs.unsqueeze(2)        
-        xt = xt.unsqueeze(2)
+            xs = torch.from_numpy( np.array( xs ) ).float().to(DEVICE)
+            xt = torch.from_numpy( np.array( xt ) ).float().to(DEVICE)
 
-        n_class = xs.size(0)
-        assert xt.size(0) == n_class
-        n_support = xs.size(1)
-        n_query = xt.size(1)
+            xs = xs/255.
+            xt = xt/255.
 
-        target_inds = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(DEVICE)
+            xs = xs.squeeze(0).unsqueeze(2)
+            xt = xt.squeeze(0).unsqueeze(2)
 
-        x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
-                    xt.view(n_class * n_query, *xt.size()[2:])], 0)
+            n_class = xs.size(0)
+            assert xt.size(0) == n_class
+            n_support = xs.size(1)
+            n_query = xt.size(1)
 
-        with torch.no_grad():
-            z = model(x)
-        
-        z_dim = z.size(-1)
+            target_inds = torch.arange(0, n_class).view(n_class, 1, 1).expand(n_class, n_query, 1).long().to(DEVICE)
 
-        z_proto = z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)
-        zq = z[n_class*n_support:]
+            x = torch.cat([xs.view(n_class * n_support, *xs.size()[2:]),
+                        xt.view(n_class * n_query, *xt.size()[2:])], 0)
 
-        dists = euclidean_dist(zq, z_proto)
+            with torch.no_grad():
+                z = model(x)
+            
+            z_dim = z.size(-1)
 
-        log_p_y = F.log_softmax(-dists, dim=0).view(n_class, n_query, -1)
+            z_proto = z[:n_class*n_support].view(n_class, n_support, z_dim).mean(1)
+            zq = z[n_class*n_support:]
 
-        test_loss = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+            dists = euclidean_dist(zq, z_proto)
 
-        _, y_hat = log_p_y.max(2)
-        test_acc = torch.eq(y_hat, target_inds.squeeze()).float().mean()
-        
-        test_loss = test_loss.cpu().data.item()
-        test_acc = test_acc.cpu().data.item()
-                
-        print('Epoch: {}'.format(epoch) )
-        print('Train: Loss: {:.5f} Acc: {:.5f}'.format(train_loss, train_acc))
-        print('Test:  Loss: {:.5f} Acc: {:.5f}'.format(test_loss, test_acc))
+            log_p_y = F.log_softmax(-dists, dim=0).view(n_class, n_query, -1)
+
+            test_loss = -log_p_y.gather(2, target_inds).squeeze().view(-1).mean()
+
+            _, y_hat = log_p_y.max(2)
+            test_acc = torch.eq(y_hat, target_inds.squeeze()).float().mean()
+            
+            test_loss = test_loss.cpu().data.item()
+            test_acc = test_acc.cpu().data.item()
+                    
+            print('Train: Loss: {:.5f} Acc: {:.5f}'.format(train_loss, train_acc))
+            print('Test:  Loss: {:.5f} Acc: {:.5f}'.format(test_loss, test_acc))
+
+
+            print('')
+            test_inx = np.random.choice( 60, 5 )
+            for i in test_inx:                
+                pred_idx = y_hat[i].cpu().data.numpy()
+                score = 0
+                for idx in pred_idx:
+                    if idx == i:
+                        score += 1
+
+                print('Target: "{}" | {}/10'.format( test_batch[i]['char'], score ) )
+            print('')
+
 
 
 train_eval()
